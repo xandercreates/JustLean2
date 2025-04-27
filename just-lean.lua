@@ -97,7 +97,7 @@ local function inOutSine(a, b, t)
              modelpart = vanilla_model.HEAD,
              rotScale = 1,
              vanillaHead = true,
-             speed = 0.3625,
+             speed = false,
              enabled = true
          }
      end
@@ -157,7 +157,7 @@ local function inOutSine(a, b, t)
      for _, v in pairs(head) do
          if v.enabled then
              vanilla_model.HEAD:setRot(0,0,0)
-             v.selHead:setOffsetRot(inOutSine(v.selHead:getOffsetRot() or vec(0,0,0), v.rot, v.speed))
+             v.selHead:setOffsetRot(inOutSine(v.selHead:getOffsetRot() or vec(0,0,0), v.rot, v.speed or delta))
          else
              vanilla_model.HEAD:setRot()
          end
@@ -165,7 +165,7 @@ local function inOutSine(a, b, t)
      
      for _, k in pairs(lean) do
          if k.enabled then
-              k.modelpart:setOffsetRot(inOutSine(k.modelpart:getOffsetRot() or vec(0,0,0), k.rot, k.speed))
+              k.modelpart:setOffsetRot(inOutSine(k.modelpart:getOffsetRot() or vec(0,0,0), k.rot, k.speed or delta))
          end
      end
  end
