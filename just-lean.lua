@@ -1,6 +1,44 @@
 --[[
 Rewrite Structure Heavily Inspired by Squishy's API
 ]]--
+--#region 'SquishyChecker'
+local function warn(message, level, prefix, toLog, both) --by auria
+    local _, traceback = pcall(function() error(message, (level or 1) + 3) end)
+    if both or not toLog then
+    printJson(toJson{
+       {text = '[warn] ', color = 'gold'},
+       {text = avatar:getEntityName(), color = 'white'},
+       ' : ', traceback, '\n'
+    })
+   end
+   if toLog or both then
+    host:warnToLog('['..(prefix or "warn")..'] '..traceback)
+   end
+ end
+local Squishy
+for _, key in ipairs(listFiles(nil,true)) do
+    if key:find("SquAPI$") then
+        Squishy = require(key)
+        warn("Squishy's API Detected. This script will not work properly with the Smooth Head/Torso/etc.")
+        break
+    end
+end
+
+function events.entity_init()
+    if Squishy ~= nil then
+        Squishy = Squishy
+    end
+end
+
+function events.tick()
+    if not Squishy then return end
+    if #Squishy.smoothHeads >= 1 then
+        error("Just Lean can not work with SquAPI's Smooth Head Function.", 1+3)
+    end
+    
+end
+--#endregion
+
 ---@diagnostic disable
 local function inOutSine(a, b, t)
     -- log(a,b,t)
@@ -52,6 +90,14 @@ local function inOutSine(a, b, t)
      function self:toggle()
          self.enabled = not self.enabled
      end
+
+     function self:enable()
+        self.enabled = true
+     end
+
+     function self:disable()
+        self.enabled = false
+     end
  
      table.insert(cratesAPI.lean.activeLeaning, self)
      return self
@@ -63,7 +109,6 @@ local function inOutSine(a, b, t)
  cratesAPI.head.activeHead = {}
  
  ---@param modelpart ModelPart
- 
  ---@param enabled boolean
  ---@param rotScale number
  ---@param vanillaHead boolean
@@ -75,14 +120,31 @@ local function inOutSine(a, b, t)
      self.rotScale = rotScale or 1
      self.speed = speed or 0.3625
      self.vanillaHead = vanillaHead or false
+
      function self:toggle()
          self.enabled = not self.enabled
+     end
+
+     function self:enable()
+        self.enabled = true
+     end
+
+     function self:disable()
+        self.enabled = false
      end
  
     table.insert(cratesAPI.head.activeHead, self)
     return self
  end
- 
+  
+ local function velmod()
+    if player:getPose() == "STANDING" then
+    local velocityLength = player:getVelocity().x_z:length()
+        return math.clamp(velocityLength - 0.21585, 0, 0.06486) / 0.06486 * 9 + 1
+    else
+        return 1000
+    end
+end
  
  function cratesAPI:tick()
     if not self.enabled then return self end
@@ -102,7 +164,6 @@ local function inOutSine(a, b, t)
          }
      end
      for id_h, v in pairs(head) do
- 
          if v.enabled then
              local mainrot = ((((vanilla_model.HEAD:getOriginRot())+180)%360)-180)
              v.selHead = v.modelpart or v.vanillaHead and vanilla_model.HEAD
@@ -121,15 +182,7 @@ local function inOutSine(a, b, t)
                  player:getBodyYaw(0.5)
                  )
              )+180)%360)-180).xy_:toRad()
- 
-             local function velmod()
-                 if player:getPose() == "STANDING" then
-                 local velocityLength = player:getVelocity().x_z:length()
-                     return math.clamp(velocityLength - 0.21585, 0, 0.06486) / 0.06486 * 9 + 1
-                 else
-                     return 1000
-                 end
-             end
+
              local t = sin(((client.getSystemTime() / 1000) * 20) / 16.0)
              local breathe = vec(
                      t * 2.0,
