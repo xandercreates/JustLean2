@@ -106,7 +106,6 @@ local function inOutSine(a, b, t)
          if v.enabled then
              local mainrot = ((((vanilla_model.HEAD:getOriginRot())+180)%360)-180)
              v.selHead = v.modelpart or v.vanillaHead and vanilla_model.HEAD
-             log(v.selHead)
              for id_l, y in pairs(lean) do
              if id_h == id_l then
                  v.rot = mainrot - y.modelpart:getOffsetRot()
