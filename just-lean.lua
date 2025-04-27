@@ -19,7 +19,9 @@ local Squishy
 for _, key in ipairs(listFiles(nil,true)) do
     if key:find("SquAPI$") then
         Squishy = require(key)
-        warn("Squishy's API Detected. This script will not work properly with the Smooth Head/Torso/etc.")
+        if host:isHost() then
+            warn("Squishy's API Detected. This script will not work properly with the Smooth Head/Torso/etc.")
+        end
         break
     end
 end
