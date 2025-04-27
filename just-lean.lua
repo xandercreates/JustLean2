@@ -105,7 +105,8 @@ local function inOutSine(a, b, t)
  
          if v.enabled then
              local mainrot = ((((vanilla_model.HEAD:getOriginRot())+180)%360)-180)
-             v.selHead = v.vanillaHead and vanilla_model.HEAD or v.modelpart
+             v.selHead = v.modelpart or v.vanillaHead and vanilla_model.HEAD
+             log(v.selHead)
              for id_l, y in pairs(lean) do
              if id_h == id_l then
                  v.rot = mainrot - y.modelpart:getOffsetRot()
@@ -165,7 +166,7 @@ local function inOutSine(a, b, t)
      
      for _, k in pairs(lean) do
          if k.enabled then
-              k.modelpart:setOffsetRot(inOutSine(k.modelpart:getOffsetRot(), k.rot, k.speed))
+              k.modelpart:setOffsetRot(inOutSine(k.modelpart:getOffsetRot() or vec(0,0,0), k.rot, k.speed))
          end
      end
  end
