@@ -237,7 +237,7 @@ function cratesAPI:avatar_init()
     end
 
     for _, k in pairs(lean) do
-        k.rot:set(vec(lean_x, lean_y, -lean_y * 0.075):add(k.offset))
+        k.rot:set(vec(0,0,0):add(k.offset))
         k._rot:set(k.rot)
     end
 end
@@ -331,6 +331,10 @@ function cratesAPI:render(delta)
 end
 
 if cratesAPI.allowAutoUpdates then
+    function events.entity_init()
+        cratesAPI:avatar_init()
+    end
+
     function events.tick()
         cratesAPI:tick()
     end
