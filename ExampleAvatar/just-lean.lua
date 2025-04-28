@@ -22,7 +22,7 @@ for _, key in ipairs(listFiles(nil, true)) do
         Squishy = require(key)
         if host:isHost() then
             warn(
-            "Squishy's API Detected. This script will not work properly with the Smooth Head/Torso/etc.",
+                "Squishy's API Detected. This script will not work properly with the Smooth Head/Torso/etc.",
                 2)
         end
         break
@@ -237,7 +237,7 @@ function cratesAPI:avatar_init()
     end
 
     for _, k in pairs(lean) do
-        k.rot:set(vec(lean_x, lean_y, -lean_y * 0.075):add(k.offset))
+        k.rot:set(vec(0, 0, 0):add(k.offset))
         k._rot:set(k.rot)
     end
 end
@@ -255,7 +255,7 @@ function cratesAPI:tick()
     if #head < 1 then
         if self.debug then
             print(
-            "Head not added/found. Creating Fallback; Will not work if you aren't using a keyworded Head part (Which follows the vanilla head!)")
+                "Head not added/found. Creating Fallback; Will not work if you aren't using a keyworded Head part (Which follows the vanilla head!)")
         end
         head[1] = {
             modelpart = vanilla_model.HEAD,
@@ -271,8 +271,9 @@ function cratesAPI:tick()
             v.selHead = v.modelpart or v.vanillaHead and vanilla_model.HEAD
             for id_l, y in pairs(lean) do
                 if id_h == id_l then --insurance
+                local final = ((((vanilla_model.HEAD:getOriginRot()) + 180) % 360) - 180) - vec(y.rot.x, y.rot.y, -y.rot.y/4)
                     v.rot:set(ease(v.rot,
-                        ((((vanilla_model.HEAD:getOriginRot()) + 180) % 360) - 180) - y.rot, v.speed,
+                        final, v.speed,
                         "inOutSine"))
                 end
             end
@@ -331,6 +332,10 @@ function cratesAPI:render(delta)
 end
 
 if cratesAPI.allowAutoUpdates then
+    function events.entity_init()
+        cratesAPI:avatar_init()
+    end
+
     function events.tick()
         cratesAPI:tick()
     end
