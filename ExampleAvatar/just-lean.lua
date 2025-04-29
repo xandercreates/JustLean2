@@ -114,6 +114,8 @@ local cratesAPI = {}
 cratesAPI.allowAutoUpdates = true
 cratesAPI.enabled = true
 cratesAPI.debug = false
+cratesAPI.exposeEasing = false
+
 
 ---@class Lean
 cratesAPI.lean = {}
@@ -165,7 +167,11 @@ function cratesAPI.lean.new(self, modelpart, minLean, maxLean, speed, breathing,
     end
 
     function self:toggle(x)
-        self.enabled = not self.enabled
+        if x == nil then
+            self.enabled = not self.enabled
+        elseif x ~= nil then
+            self.enabled = x
+        end
         if self.enabled == false then
             self:disable(x)
         end
@@ -194,30 +200,47 @@ cratesAPI.head = {}
 cratesAPI.head.__index = cratesAPI.head
 cratesAPI.head.activeHead = {}
 
+---comment
+---@param self Head
 ---@param modelpart ModelPart
----@param enabled boolean
----@param rotScale number
----@param vanillaHead boolean
 ---@param speed number
-function cratesAPI.head.new(self, modelpart, rotScale, speed, vanillaHead, enabled)
+---@param tilt number
+---@param vanillaHead boolean
+---@param enabled boolean
+---@return Head
+function cratesAPI.head.new(self, modelpart, speed, tilt, vanillaHead, enabled)
     local self = setmetatable({}, cratesAPI.head)
     self.modelpart = modelpart
     self.enabled = enabled or true
-    self.rotScale = rotScale or 1
     self.speed = speed or 0.3625
     self.vanillaHead = vanillaHead or false
     self._rot = vec(0, 0, 0)
     self.rot = vec(0, 0, 0)
-    function self:toggle()
-        self.enabled = not self.enabled
+    self.tilt = (1 / (tilt or 4))
+
+    function self:toggle(x)
+        if x == nil then
+            self.enabled = not self.enabled
+        elseif x ~= nil then
+            self.enabled = x
+        end
+        if self.enabled == false then
+            self:disable(x)
+        end
     end
 
     function self:enable()
         self.enabled = true
     end
 
-    function self:disable()
+    function self:disable(x)
+        if not x then
+            self.rot = vec(0, 0, 0)
+            self.modelpart:setOffsetRot()
+            vanilla_model.HEAD:setRot()
+        end
         self.enabled = false
+        return self
     end
 
     table.insert(cratesAPI.head.activeHead, self)
@@ -228,6 +251,11 @@ end
 
 --#region 'Update'
 function cratesAPI:avatar_init()
+    if self.exposeEasing then
+        math.ease = ease
+    else
+        math.ease = nil
+    end
     if not self.enabled then return self end
     local head = self.head.activeHead
     local lean = self.lean.activeLeaning
@@ -262,6 +290,8 @@ function cratesAPI:tick()
             rotScale = 1,
             vanillaHead = true,
             speed = false,
+            rot = vec(0,0,0),
+            _rot = vec(0,0,0),
             enabled = true,
         }
     end
@@ -271,12 +301,14 @@ function cratesAPI:tick()
             v.selHead = v.modelpart or v.vanillaHead and vanilla_model.HEAD
             for id_l, y in pairs(lean) do
                 if id_h == id_l then --insurance
-                local final = ((((vanilla_model.HEAD:getOriginRot()) + 180) % 360) - 180) - vec(y.rot.x, y.rot.y, -y.rot.y/4)
+                    local final = ((((vanilla_model.HEAD:getOriginRot()) + 180) % 360) - 180) -
+                    vec(y.rot.x, y.rot.y, -y.rot.y / 4)
                     v.rot:set(ease(v.rot,
-                        final, v.speed,
+                        final, v.speed or 0.5,
                         "inOutSine"))
                 end
             end
+            if v.tilt == 0 then v.tilt = 0.5 end
         end
     end
 
