@@ -69,6 +69,25 @@ function easings.inOutCubic(a, b, t)
     return math.map(v, 0, 1, a, b)
 end
 
+function easings.inOutElastic(a, b, x)
+    local c5 = (2 * math.pi) / 4.5
+    local v
+    if x == 0 then
+        v = 0
+    elseif x == 1 then
+        v = 1
+    elseif x < 0.5 then
+        v = -(math.pow(2, 20 * x - 10) * math.sin((20 * x - 11.125) * c5)) / 2
+    else
+        v = (math.pow(2, -20 * x + 10) * math.sin((20 * x - 11.125) * c5)) / 2 + 1
+    end
+    return math.map(v, 0, 1, a, b)
+end
+
+function easings.linear(a, b, t)
+    return a + (b - a) * t
+end
+
 ---@private
 ---@param a number|Vector|Matrix
 ---@param b number|Vector|Matrix
@@ -290,8 +309,6 @@ function cratesAPI:tick()
             rotScale = 1,
             vanillaHead = true,
             speed = false,
-            rot = vec(0,0,0),
-            _rot = vec(0,0,0),
             enabled = true,
         }
     end
@@ -302,10 +319,10 @@ function cratesAPI:tick()
             for id_l, y in pairs(lean) do
                 if id_h == id_l then --insurance
                     local final = ((((vanilla_model.HEAD:getOriginRot()) + 180) % 360) - 180) -
-                    vec(y.rot.x, y.rot.y, -y.rot.y / 4)
+                        vec(y.rot.x, y.rot.y, -y.rot.y / 4)
                     v.rot:set(ease(v.rot,
-                        final, v.speed or 0.5,
-                        "inOutSine"))
+                        final, v.speed,
+                        "inOutElastic"))
                 end
             end
             if v.tilt == 0 then v.tilt = 0.5 end
@@ -330,11 +347,12 @@ function cratesAPI:tick()
             local targetVel = velmod()
             local lean_x = clamp(sin(-mainrot.x / targetVel) * 45.5, k.minLean.x, k.maxLean.x)
             local lean_y = -clamp(math.sin(mainrot.y) * 45.5, k.minLean.y, k.maxLean.y)
-            local rot = vec(lean_x, lean_y, -lean_y * 0.075):add(k.offset)
+            local rot = not player:isCrouching() and
+            vec(lean_x, lean_y, -lean_y * 0.075):add(k.offset) or vec(0, 0, 0)
             if k.breathing then
-                k.rot:set(ease(k.rot, rot + breathe, k.speed or 0.3, "inOutCubic"))
+                k.rot:set(ease(k.rot, rot + breathe, k.speed or 0.3, "inOutElastic"))
             else
-                k.rot:set(ease(k.rot, rot, k.speed or 0.3, "inOutCubic"))
+                k.rot:set(ease(k.rot, rot, k.speed or 0.3, "inOutElastic"))
             end
         end
     end
