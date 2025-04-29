@@ -70,6 +70,7 @@ function easings.inOutCubic(a, b, t)
 end
 
 function easings.inOutElastic(a, b, x)
+    x = x + 0.05
     local c5 = (2 * math.pi) / 4.5
     local v
     if x == 0 then
@@ -112,7 +113,8 @@ end
 local function velmod()
     if not player:isLoaded() then return end
     if player:getPose() == "STANDING" then
-        local velocityLength = player:getVelocity().x_z:length()
+        local velocityLength = (player:getVelocity().x_z*player:getLookDir()):length()*10
+        --log(velocityLength)
         return math.clamp(velocityLength - 0.21585, 0, 0.06486) / 0.06486 * 9 + 1
     else
         return 1000
@@ -144,8 +146,9 @@ cratesAPI.lean.activeLeaning = {}
 ---@param minLean Vector2 | table
 ---@param maxLean Vector2 | table
 ---@param speed number
+---@param interp string
 ---@param enabled boolean
-function cratesAPI.lean.new(self, modelpart, minLean, maxLean, speed, breathing, enabled)
+function cratesAPI.lean.new(self, modelpart, minLean, maxLean, speed, interp, breathing, enabled)
     local self = setmetatable({}, cratesAPI.lean)
     self.modelpart = modelpart
     if type(minLean) == "table" then
@@ -163,6 +166,7 @@ function cratesAPI.lean.new(self, modelpart, minLean, maxLean, speed, breathing,
     self.rot = vec(0, 0, 0)
     self._rot = vec(0, 0, 0)
     self.breathing = breathing
+    self.interp = interp
     self.offset = vec(0, 0, 0)
 
     ---@vararg number|Vector3
@@ -227,7 +231,7 @@ cratesAPI.head.activeHead = {}
 ---@param vanillaHead boolean
 ---@param enabled boolean
 ---@return Head
-function cratesAPI.head.new(self, modelpart, speed, tilt, vanillaHead, enabled)
+function cratesAPI.head.new(self, modelpart, speed, tilt, interp, vanillaHead, enabled)
     local self = setmetatable({}, cratesAPI.head)
     self.modelpart = modelpart
     self.enabled = enabled or true
@@ -236,6 +240,7 @@ function cratesAPI.head.new(self, modelpart, speed, tilt, vanillaHead, enabled)
     self._rot = vec(0, 0, 0)
     self.rot = vec(0, 0, 0)
     self.tilt = (1 / (tilt or 4))
+    self.interp = interp or "inOutSine"
 
     function self:toggle(x)
         if x == nil then
@@ -322,7 +327,7 @@ function cratesAPI:tick()
                         vec(y.rot.x, y.rot.y, -y.rot.y / 4)
                     v.rot:set(ease(v.rot,
                         final, v.speed,
-                        "inOutElastic"))
+                        v.interp or "inOutSine"))
                 end
             end
             if v.tilt == 0 then v.tilt = 0.5 end
@@ -345,14 +350,15 @@ function cratesAPI:tick()
                 (abs(cos(t)) / 16.0)
             )
             local targetVel = velmod()
+            --log(targetVel)
             local lean_x = clamp(sin(-mainrot.x / targetVel) * 45.5, k.minLean.x, k.maxLean.x)
             local lean_y = -clamp(math.sin(mainrot.y) * 45.5, k.minLean.y, k.maxLean.y)
             local rot = not player:isCrouching() and
             vec(lean_x, lean_y, -lean_y * 0.075):add(k.offset) or vec(0, 0, 0)
             if k.breathing then
-                k.rot:set(ease(k.rot, rot + breathe, k.speed or 0.3, "inOutElastic"))
+                k.rot:set(ease(k.rot, rot + breathe, k.speed or 0.3, k.interp or "inOutCubic"))
             else
-                k.rot:set(ease(k.rot, rot, k.speed or 0.3, "inOutElastic"))
+                k.rot:set(ease(k.rot, rot, k.speed or 0.3, "inOutCubic"))
             end
         end
     end
