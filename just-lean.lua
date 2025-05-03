@@ -314,6 +314,8 @@ function cratesAPI:tick()
             rotScale = 1,
             vanillaHead = true,
             speed = false,
+            _rot = vec(0,0,0),
+            rot = vec(0,0,0)
             enabled = true,
         }
     end
