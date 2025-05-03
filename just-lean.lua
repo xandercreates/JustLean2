@@ -325,8 +325,8 @@ function cratesAPI:tick()
             v.selHead = v.modelpart or v.vanillaHead and vanilla_model.HEAD
             for id_l, y in pairs(lean) do
                 if id_h == id_l then --insurance
-                    local final = ((((vanilla_model.HEAD:getOriginRot()) + 180) % 360) - 180) -
-                        vec(y.rot.x, y.rot.y, -y.rot.y / 4)
+                local player_rot = (player:getRot() - vec(0,player:getBodyYaw())) * vec(-1,-1)
+                local final = (player_rot).xy_ - vec(y.rot.x, y.rot.y, -y.rot.y / 4)
                     v.rot:set(ease(v.rot,
                         final, v.speed or 0.5,
                         v.interp or "inOutSine"))
