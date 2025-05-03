@@ -328,7 +328,7 @@ function cratesAPI:tick()
                     local final = ((((vanilla_model.HEAD:getOriginRot()) + 180) % 360) - 180) -
                         vec(y.rot.x, y.rot.y, -y.rot.y / 4)
                     v.rot:set(ease(v.rot,
-                        final, v.speed,
+                        final, v.speed or 0.5,
                         v.interp or "inOutSine"))
                 end
             end
