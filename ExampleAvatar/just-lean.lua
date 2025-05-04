@@ -280,6 +280,7 @@ end
 
 function cratesAPI:tick()
     if not self.enabled then return self end
+    local vehicle = player:getVehicle()
     local head = self.head.activeHead
     local lean = self.lean.activeLeaning
     if #lean < 1 then
@@ -310,7 +311,8 @@ function cratesAPI:tick()
             for id_l, y in pairs(lean) do
                 if id_h == id_l then --insurance
                 local player_rot = ((((player:getRot() - vec(0,player:getBodyYaw())))+180)%360)-180
-                local final = (-player_rot).xy_ - vec(y.rot.x, y.rot.y, -y.rot.y / 4)
+                local fpr = (-player_rot).xy_ - vec(y.rot.x, y.rot.y, -y.rot.y / 4) 
+                local final = vehicle and (((vanilla_model.HEAD:getOriginRot()+180)%360)-180) - vec(y.rot.x, y.rot.y, -y.rot.y / 4) or fpr
                     v.rot:set(ease(v.rot,
                         final, v.speed or 0.5,
                         v.interp or "inOutSine"))
@@ -323,7 +325,7 @@ function cratesAPI:tick()
     for _, k in pairs(lean) do
         k._rot:set(k.rot)
         if k.enabled then
-            local mainrot =(((((player:getRot() - vec(0,player:getBodyYaw())).xy_)+180)%360)-180):toRad()
+            local mainrot = vehicle and (((vanilla_model.HEAD:getOriginRot()+180)%360)-180):toRad():scale(-1,1,1) or (((((player:getRot() - vec(0,player:getBodyYaw())).xy_)+180)%360)-180):toRad()
             local t = sin(((client.getSystemTime() / 1000) * 20) / 16.0)
             local breathe = vec(
                 t * 2.0,
