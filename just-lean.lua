@@ -69,23 +69,7 @@ function easings.inOutCubic(a, b, t)
     return math.map(v, 0, 1, a, b)
 end
 
-function easings.inOutElastic(a, b, x)
-    x = x + 0.05
-    local c5 = (2 * math.pi) / 4.5
-    local v
-    if x == 0 then
-        v = 0
-    elseif x == 1 then
-        v = 1
-    elseif x < 0.5 then
-        v = -(math.pow(2, 20 * x - 10) * math.sin((20 * x - 11.125) * c5)) / 2
-    else
-        v = (math.pow(2, -20 * x + 10) * math.sin((20 * x - 11.125) * c5)) / 2 + 1
-    end
-    return math.map(v, 0, 1, a, b)
-end
-
-function easings.linear(a, b, t)
+function easings.linear(a, b, t) --literally math.lerp
     return a + (b - a) * t
 end
 
@@ -296,6 +280,7 @@ end
 
 function cratesAPI:tick()
     if not self.enabled then return self end
+    local vehicle = player:getVehicle()
     local head = self.head.activeHead
     local lean = self.lean.activeLeaning
     if #lean < 1 then
@@ -326,7 +311,8 @@ function cratesAPI:tick()
             for id_l, y in pairs(lean) do
                 if id_h == id_l then --insurance
                 local player_rot = ((((player:getRot() - vec(0,player:getBodyYaw())))+180)%360)-180
-                local final = (-player_rot).xy_ - vec(y.rot.x, y.rot.y, -y.rot.y / 4)
+                local fpr = (-player_rot).xy_ - vec(y.rot.x, y.rot.y, -y.rot.y / 4) 
+                local final = vehicle and (((vanilla_model.HEAD:getOriginRot()+180)%360)-180) - vec(y.rot.x, y.rot.y, -y.rot.y / 4) or fpr
                     v.rot:set(ease(v.rot,
                         final, v.speed or 0.5,
                         v.interp or "inOutSine"))
@@ -339,7 +325,7 @@ function cratesAPI:tick()
     for _, k in pairs(lean) do
         k._rot:set(k.rot)
         if k.enabled then
-            local mainrot =(((((player:getRot() - vec(0,player:getBodyYaw())).xy_)+180)%360)-180):toRad()
+            local mainrot = vehicle and (((vanilla_model.HEAD:getOriginRot()+180)%360)-180):toRad():scale(-1,1,1) or (((((player:getRot() - vec(0,player:getBodyYaw())).xy_)+180)%360)-180):toRad()
             local t = sin(((client.getSystemTime() / 1000) * 20) / 16.0)
             local breathe = vec(
                 t * 2.0,
