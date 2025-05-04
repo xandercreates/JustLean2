@@ -325,8 +325,8 @@ function cratesAPI:tick()
             v.selHead = v.modelpart or v.vanillaHead and vanilla_model.HEAD
             for id_l, y in pairs(lean) do
                 if id_h == id_l then --insurance
-                local player_rot = (player:getRot() - vec(0,player:getBodyYaw())) * vec(-1,-1)
-                local final = (player_rot).xy_ - vec(y.rot.x, y.rot.y, -y.rot.y / 4)
+                local player_rot = ((((player:getRot() - vec(0,player:getBodyYaw())))+180)%360)-180
+                local final = (-player_rot).xy_ - vec(y.rot.x, y.rot.y, -y.rot.y / 4)
                     v.rot:set(ease(v.rot,
                         final, v.speed or 0.5,
                         v.interp or "inOutSine"))
@@ -339,12 +339,7 @@ function cratesAPI:tick()
     for _, k in pairs(lean) do
         k._rot:set(k.rot)
         if k.enabled then
-            local mainrot = ((((player:getRot() - vec(
-                0,
-                player:getBodyYaw()
-            )
-            ) + 180) % 360) - 180).xy_:toRad()
-
+            local mainrot =(((((player:getRot() - vec(0,player:getBodyYaw())).xy_)+180)%360)-180):toRad()
             local t = sin(((client.getSystemTime() / 1000) * 20) / 16.0)
             local breathe = vec(
                 t * 2.0,
