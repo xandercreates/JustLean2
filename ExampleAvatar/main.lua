@@ -6,7 +6,7 @@ local torso = cAPI.lean:new(
     { x = -45, y = -15 },         -- minimum Lean, can be either a table or Vector2. Change to suit your needs
     { x = 45, y = 15 },           -- maximum Lean, can be either a table or Vector2. Change to suit your needs.
     0.4,                          --speed,
-    "inOutElastic",               --interpolation method. Takes string, Valid vals: "inOutSine", "inOutCubic", "linear"
+    "inOutCubic",               --interpolation method. Takes string, Valid vals: "inOutSine", "inOutCubic", "linear"
     true,                         --optional breathing idle
     true                          --enabled or not
 )
