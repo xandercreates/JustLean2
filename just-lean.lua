@@ -338,7 +338,7 @@ function cratesAPI:avatar_init()
     if not self.enabled then return self end
 
     for _, v in pairs(hed) do
-        v.rot:set(player:getRot()-vec(0,player:getBodyYaw()).xy_)
+        v.rot:set((player:getRot()-vec(0,player:getBodyYaw())).xy_)
         v._rot:set(v.rot)
     end
 
