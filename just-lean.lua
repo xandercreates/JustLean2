@@ -73,24 +73,8 @@ function easings.inOutCubic(a, b, t)
     return math.map(v, 0, 1, a, b)
 end
 
-function easings.inOutElastic(a, b, x)
-    local t = x + 0.05
-    local c5 = (2 * math.pi) / 4.5
-    local v
-    if x == 0 then
-        v = 0
-    elseif x == 1 then
-        v = 1
-    elseif x < 0.5 then
-        v = -((2 ^ (20 * t - 10)) * math.sin((20 * t - 11.125) * c5)) / 2
-    else
-        v = ((2 ^ (-20 * t + 10)) * math.sin((20 *  t - 11.125) * c5)) / 2 + 1
-    end
-    return math.map(v, 0, 1, a, b)
-end
-
-function easings.linear(a, b, t)
-    return a + (b - a) * t
+function easings.linear(a,b,t)
+    return math.lerp(a,b,t)
 end
 
 ---@private
@@ -141,6 +125,7 @@ cratesAPI.allowAutoUpdates = true
 cratesAPI.enabled = true
 cratesAPI.debug = false
 cratesAPI.exposeEasing = true
+cratesAPI.silly = false
 
 function cratesAPI:enable()
     self.enabled = true
@@ -329,7 +314,9 @@ end
 local hed = head.activeHead
 local le = lean.activeLeaning
 local influ = influence.activeInfluences
+local headRot = cratesAPI.silly and ((((player:getRot()-vec(0,player:getBodyYaw()))+180)%360)-180).xy_ or (((vanilla_model.HEAD:getOriginRot()+180)%360)-180)
 function cratesAPI:avatar_init()
+
     if self.exposeEasing then
         math.ease = ease
     else
@@ -338,7 +325,7 @@ function cratesAPI:avatar_init()
     if not self.enabled then return self end
 
     for _, v in pairs(hed) do
-        v.rot:set((player:getRot()-vec(0,player:getBodyYaw())).xy_)
+        v.rot:set(headRot)
         v._rot:set(v.rot)
     end
 
@@ -350,6 +337,7 @@ end
 
 function cratesAPI:tick()
     if not self.enabled then return self end
+    headRot = cratesAPI.silly and ((((player:getRot()-vec(0,player:getBodyYaw()))+180)%360)-180).xy_ or (((vanilla_model.HEAD:getOriginRot()+180)%360)-180)
     local vehicle = player:getVehicle()
     if #le < 1 then
         if self.debug then
@@ -377,9 +365,9 @@ function cratesAPI:tick()
             v.selHead = v.modelpart or v.vanillaHead and vanilla_model.HEAD
             for id_l, y in pairs(le) do
                 if id_h == id_l then --insurance
-                local player_rot = ((((player:getRot() - vec(0,player:getBodyYaw())))+180)%360)-180
-                local fpr = (-player_rot).xy_ - vec(y.rot.x, y.rot.y, -y.rot.y / 4) 
-                local final = vehicle and (((vanilla_model.HEAD:getOriginRot()+180)%360)-180) - vec(y.rot.x, y.rot.y, -y.rot.y / 4) or fpr        
+                local player_rot = headRot
+                local fpr = cratesAPI.silly and (-player_rot).xy_ or player_rot - vec(y.rot.x, y.rot.y, -y.rot.y / 4) 
+                local final = cratesAPI.silly and vehicle and (((vanilla_model.HEAD:getOriginRot()+180)%360)-180) - vec(y.rot.x, y.rot.y, -y.rot.y / 4) or fpr        
                     v.rot:set(ease(v.rot,
                         final, v.speed or 0.5,
                         v.interp or "inOutSine"))
@@ -392,7 +380,7 @@ function cratesAPI:tick()
     for _, k in pairs(le) do
         k._rot:set(k.rot)
         if k.enabled then
-            local mainrot = vehicle and (((vanilla_model.HEAD:getOriginRot()+180)%360)-180):toRad():scale(-1,1,1) or (((((player:getRot() - vec(0,player:getBodyYaw())).xy_)+180)%360)-180):toRad()
+            local mainrot = cratesAPI.silly and vehicle and (((vanilla_model.HEAD:getOriginRot()+180)%360)-180):toRad():scale(-1,1,1) or cratesAPI.silly and (((((player:getRot() - vec(0,player:getBodyYaw())).xy_)+180)%360)-180):toRad() or headRot:toRad()
             local t = sin(((client.getSystemTime() / 1000) * 20) / 16.0)
             local breathe = vec(
                 t * 2.0,
@@ -400,21 +388,21 @@ function cratesAPI:tick()
                 (abs(cos(t)) / 16.0)
             )
             local targetVel = velmod()
-            local lean_x = clamp(sin(-mainrot.x / targetVel) * 45.5, k.minLean.x, k.maxLean.x)
-            local lean_y = -clamp(math.sin(mainrot.y) * 45.5, k.minLean.y, k.maxLean.y)
+            local lean_x = clamp(sin(cratesAPI.silly and -mainrot.x or mainrot.x / targetVel) * 45.5, k.minLean.x, k.maxLean.x)
+            local lean_y = clamp(sin(cratesAPI.silly and -mainrot.y or mainrot.y) * 45.5, k.minLean.y, k.maxLean.y)
             local rot = not player:isCrouching() and
             vec(lean_x, lean_y, -lean_y * 0.075):add(k.offset) or vec(0, 0, 0)
             if k.breathing then
-                k.rot:set(ease(k.rot, rot + breathe, k.speed or 0.3, k.interp or "inOutCubic"))
+                k.rot:set(ease(k.rot, rot + breathe, k.speed or 0.3, k.interp or "linear"))
             else
-                k.rot:set(ease(k.rot, rot, k.speed or 0.3, "inOutCubic"))
+                k.rot:set(ease(k.rot, rot, k.speed or 0.3, k.interp or "linear"))
             end
         end
     end
     for _, l in pairs(influ) do
         if l.enabled then
             l._rot:set(l.rot)
-            l.rot = ease(l.rot, -l.__metatable.rot * l.factor, l.speed, l.interp or "inOutCubic")
+            l.rot = ease(l.rot, -l.__metatable.rot * l.factor or 1, l.speed, l.interp or "linear")
         end
     end
 end
@@ -433,7 +421,7 @@ function cratesAPI:render(delta)
     for _, v in pairs(hed) do
         if v.enabled then
             vanilla_model.HEAD:setRot(0, 0, 0)
-            local fRot = easings.linear(v._rot, v.rot, delta)
+            local fRot = ease(v._rot, v.rot, delta, "linear")
             v.selHead:setOffsetRot(fRot)
         else
             vanilla_model.HEAD:setRot()
@@ -442,14 +430,14 @@ function cratesAPI:render(delta)
 
     for _, k in pairs(le) do
         if k.enabled then
-            local fRot = easings.linear(k._rot, k.rot, delta)
+            local fRot = ease(k._rot, k.rot, delta, "linear")
             k.modelpart:setOffsetRot(fRot)
         end
     end
 
     for _, l in pairs(influ) do
         if l.enabled then
-            local fRot = easings.linear(l._rot, l.rot, delta)
+            local fRot = ease(l._rot, l.rot, delta, "linear")
             l.modelpart:setOffsetRot(fRot)
         end
     end
