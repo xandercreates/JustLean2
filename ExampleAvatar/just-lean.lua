@@ -1,7 +1,7 @@
 --[[
 Rewrite Structure Heavily Inspired by Squishy's API
 ]]                                                       --
---#region 'SquishyChecker'
+--#region 'CompatChecks'
 ---@param message string
 ---@param level number ?
 ---@param prefix string ?
@@ -22,6 +22,7 @@ local function warn(message, level, prefix, toLog, both) --by Auria, Modified by
 end
 
 local Squishy
+local Gaze
 for _, key in ipairs(listFiles(nil, true)) do
     if key:find("SquAPI$") then
         Squishy = require(key)
@@ -30,6 +31,10 @@ for _, key in ipairs(listFiles(nil, true)) do
                 "Squishy's API Detected. This script will not work properly with the Smooth Head/Torso/etc.",
                 2)
         end
+        break
+    end
+    if key:find("Gaze$") then
+        Gaze = require(key)
         break
     end
 end
@@ -41,10 +46,12 @@ function events.entity_init()
 end
 
 function events.tick()
-    if not Squishy then return end
-    if #Squishy.smoothHeads >= 1 then
-        error("Just Lean can not work with SquAPI's Smooth Head Function.", 1 + 3)
+    if Squishy then
+        if #Squishy.smoothHeads >= 1 then
+            error("Just Lean can not work with SquAPI's Smooth Head Function.", 1 + 3)
+        end
     end
+
 end
 
 --#endregion
@@ -183,6 +190,7 @@ lean.activeLeaning = {}
 ---@param maxLean Vector2 | table?
 ---@param speed number
 ---@param interp string
+---@param breathing boolean
 ---@param enabled boolean
 ---@return lean
 function lean.new(self, modelpart, minLean, maxLean, speed, interp, breathing, enabled)
@@ -367,10 +375,16 @@ function cratesAPI:tick()
                 if id_h == id_l then --insurance
                 local player_rot = headRot
                 local fpr = cratesAPI.silly and (-player_rot).xy_ or player_rot - vec(y.rot.x, y.rot.y, -y.rot.y / 4) 
-                local final = cratesAPI.silly and vehicle and (((vanilla_model.HEAD:getOriginRot()+180)%360)-180) - vec(y.rot.x, y.rot.y, -y.rot.y / 4) or fpr        
+                local final = cratesAPI.silly and vehicle and (((vanilla_model.HEAD:getOriginRot()+180)%360)-180) - vec(y.rot.x, y.rot.y, -y.rot.y / 4) or fpr
+                    if Gaze and Gaze.headOffsetRot then
+                    v.rot:set(ease(v.rot,
+                        final+Gaze.headOffsetRot, v.speed or 0.5,
+                        v.interp or "inOutSine"))
+                    else
                     v.rot:set(ease(v.rot,
                         final, v.speed or 0.5,
                         v.interp or "inOutSine"))
+                    end
                 end
             end
             if v.tilt == 0 then v.tilt = 0.5 end
@@ -391,11 +405,11 @@ function cratesAPI:tick()
             local lean_x = clamp(sin(cratesAPI.silly and -mainrot.x or mainrot.x / targetVel) * 45.5, k.minLean.x, k.maxLean.x)
             local lean_y = clamp(sin(cratesAPI.silly and -mainrot.y or mainrot.y) * 45.5, k.minLean.y, k.maxLean.y)
             local rot = not player:isCrouching() and
-            vec(lean_x, lean_y, -lean_y * 0.075):add(k.offset) or vec(0, 0, 0)
+            vec(lean_x, lean_y, lean_y * 0.075):add(k.offset) or vec(0, 0, 0)
             if k.breathing then
-                k.rot:set(ease(k.rot, rot + breathe, k.speed or 0.3, k.interp or "linear"))
+                k.rot:set(ease(k.rot, rot + breathe + (Gaze.headOffsetRot*1.5 or vec(0,0,0)), k.speed or 0.3, k.interp or "linear"))
             else
-                k.rot:set(ease(k.rot, rot, k.speed or 0.3, k.interp or "linear"))
+                k.rot:set(ease(k.rot, rot + (Gaze.headOffsetRot*1.5 or vec(0,0,0)), k.speed or 0.3, k.interp or "linear"))
             end
         end
     end
