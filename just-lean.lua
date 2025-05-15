@@ -399,10 +399,17 @@ function cratesAPI:tick()
             end
         end
     end
-    for _, l in pairs(influ) do
+    for in_i, l in pairs(influ) do
         if l.enabled then
+            for le_i, k in pairs(le) do
+                if not l.__metatable then
+                    if in_i == le_i then
+                        l.__metatable = k
+                    end
+                end
+            end
             l._rot:set(l.rot)
-            l.rot = ease(l.rot, -l.__metatable.rot * l.factor or 1, l.speed, l.interp or "linear")
+            l.rot = ease(l.rot, l.__metatable and -l.__metatable.rot * (l.factor or 1), l.speed, l.interp or "linear")
         end
     end
 end
