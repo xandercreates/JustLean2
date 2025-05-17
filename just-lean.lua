@@ -439,9 +439,11 @@ function cratesAPI:render(delta)
     
     for _, v in pairs(hed) do
         if v.enabled then
-            vanilla_model.HEAD:setRot(0, 0, 0)
+            if type(v.selHead) ~= "VanillaModelPart" then
+                vanilla_model.HEAD:setRot(0,0,0)
+            end
             local fRot = ease(v._rot, v.rot, delta, "linear")
-            v.selHead:setOffsetRot(fRot)
+            v.selHead:setRot(fRot)
         else
             vanilla_model.HEAD:setRot()
         end
