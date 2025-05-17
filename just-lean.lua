@@ -407,9 +407,9 @@ function cratesAPI:tick()
             local rot = not player:isCrouching() and
             vec(lean_x, lean_y, lean_y * 0.075):add(k.offset) or vec(0, 0, 0)
             if k.breathing then
-                k.rot:set(ease(k.rot, rot + breathe + (Gaze and Gaze.headOffsetRot*1.5 or vec(0,0,0)), k.speed or 0.3, k.interp or "linear"))
+                k.rot:set(ease(k.rot, rot + breathe + (vanilla_model.HEAD:getOffsetRot() or vec(0,0,0)), k.speed or 0.3, k.interp or "linear"))
             else
-                k.rot:set(ease(k.rot, rot + (Gaze and Gaze.headOffsetRot*1.5 or vec(0,0,0)), k.speed or 0.3, k.interp or "linear"))
+                k.rot:set(ease(k.rot, rot + (vanilla_model.HEAD:getOffsetRot() or vec(0,0,0)), k.speed or 0.3, k.interp or "linear"))
             end
         end
     end
