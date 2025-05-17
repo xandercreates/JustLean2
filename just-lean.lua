@@ -22,7 +22,6 @@ local function warn(message, level, prefix, toLog, both) --by Auria, Modified by
 end
 
 local Squishy
-local Gaze
 for _, key in ipairs(listFiles(nil, true)) do
     if key:find("SquAPI$") then
         Squishy = require(key)
@@ -31,10 +30,6 @@ for _, key in ipairs(listFiles(nil, true)) do
                 "Squishy's API Detected. This script will not work properly with the Smooth Head/Torso/etc.",
                 2)
         end
-        break
-    end
-    if key:find("Gaze$") then
-        Gaze = require(key)
         break
     end
 end
@@ -88,6 +83,16 @@ end
 ---@param a number|Vector2|Vector3|Vector4|Matrix?
 ---@param b number|Vector2|Vector3|Vector4|Matrix?
 ---@param t number
+---@return number|Vector2|Vector3|Vector4|Matrix?
+function easings.inOutQuadratic(a,b,t)
+    local v = t < 0.5 and 2 * t * t or 1 - (-2 * t + 2) ^ 2 / 2
+    return math.map(v, 0, 1, a, b)
+end
+
+---@private
+---@param a number|Vector2|Vector3|Vector4|Matrix?
+---@param b number|Vector2|Vector3|Vector4|Matrix?
+---@param t number
 ---@param s string
 ---@return number|Vector2|Vector3|Vector4|Matrix?
 local function ease(a, b, t, s)
@@ -110,7 +115,8 @@ local function velmod()
     if player:getPose() == "STANDING" then
         local velocityLength = (player:getVelocity().x_z*player:getLookDir()):length()*10
         --log(velocityLength)
-        return math.clamp(velocityLength - 0.21585, 0, 0.06486) / 0.06486 * 9 + 1
+        local scaledVel = math.log(velocityLength + 1)
+        return clamp(scaledVel - 0.21585, 0, 0.06486) / 0.06486 * 9 + 1
     else
         return 1000
     end
@@ -119,9 +125,7 @@ end
 --#endregion
 
 --#region 'Alias'
-local sin = math.sin
-local cos = math.cos
-local abs = math.abs
+local sin, cos, abs, asin, atan2 = math.sin, math.cos, math.abs, math.asin, math.atan2
 --#endregion
 
 --#region 'Just-Lean'
@@ -285,9 +289,11 @@ influence.activeInfluences = {}
 ---@param speed number
 ---@param interp string
 ---@param factor number|table|Vector3?
+---@param metatable table|metatable|nil
 ---@param enabled boolean
+---@param usematrix boolean
 ---@return influence
-function influence.new(self, modelpart, speed, interp, factor, metatable, enabled)
+function influence.new(self, modelpart, speed, interp, factor, metatable, enabled, usematrix)
     local self = setmetatable({}, influence)
     self.modelpart = modelpart
     self.speed = speed
@@ -296,6 +302,7 @@ function influence.new(self, modelpart, speed, interp, factor, metatable, enable
     self.__metatable = metatable or false
     self.rot = self.__metatable and (-self.__metatable.modelpart:getOffsetRot()) or vec(0,0,0)
     self._rot = self.rot
+    self.usematrix = usematrix
     if type(factor) == "table" then
         local x,y,z = table.unpack(factor)
         self.factor = vec(x or 1,y or 1,z or 1)
@@ -316,6 +323,28 @@ function influence.new(self, modelpart, speed, interp, factor, metatable, enable
     return self
 end
 
+---@param mat Matrix4|Matrix3
+---@return Vector3
+function influence:mat2eulerZYX(mat)
+    ---@type number, number, number
+    local x, y, z
+    local query = mat.v31 -- are we in Gimbal Lock?
+    if abs(query) < 0.9999 then
+        y = asin(-mat.v31)
+        z = atan2(mat.v21, mat.v11)
+        x = atan2(mat.v32, mat.v33)
+    elseif query < 0 then -- approx -1, gimbal lock
+        y = pi / 2
+        z = -atan2(-mat.v23, mat.v22)
+        x = 0
+    else -- approx 1, gimbal lock
+        y = -pi / 2
+        z = atan2(-mat.v23, mat.v22)
+        x = 0
+    end
+    return vec(x, y, z):toDeg()
+end
+
 --#endregion
 
 --#region 'Update'
@@ -324,7 +353,6 @@ local le = lean.activeLeaning
 local influ = influence.activeInfluences
 local headRot = cratesAPI.silly and ((((player:getRot()-vec(0,player:getBodyYaw()))+180)%360)-180).xy_ or (((vanilla_model.HEAD:getOriginRot()+180)%360)-180)
 function cratesAPI:avatar_init()
-
     if self.exposeEasing then
         math.ease = ease
     else
@@ -376,15 +404,9 @@ function cratesAPI:tick()
                 local player_rot = headRot
                 local fpr = cratesAPI.silly and (-player_rot).xy_ or player_rot - vec(y.rot.x, y.rot.y, -y.rot.y / 4) 
                 local final = cratesAPI.silly and vehicle and (((vanilla_model.HEAD:getOriginRot()+180)%360)-180) - vec(y.rot.x, y.rot.y, -y.rot.y / 4) or fpr
-                    if Gaze and Gaze.headOffsetRot then
                     v.rot:set(ease(v.rot,
-                        final+Gaze.headOffsetRot, v.speed or 0.5,
+                        final+(vanilla_model.HEAD:getOffsetRot() or vec(0,0,0)), v.speed or 0.5,
                         v.interp or "inOutSine"))
-                    else
-                    v.rot:set(ease(v.rot,
-                        final, v.speed or 0.5,
-                        v.interp or "inOutSine"))
-                    end
                 end
             end
             if v.tilt == 0 then v.tilt = 0.5 end
@@ -421,7 +443,15 @@ function cratesAPI:tick()
                 end
             end
             l._rot:set(l.rot)
-            l.rot = ease(l.rot, l.__metatable and -l.__metatable.rot * (l.factor or 1), l.speed, l.interp or "linear")
+            if l.usematrix and l.__metatable then
+                -- Use the matrix conversion if enabled
+                local modelMatrix = l.__metatable.modelpart:getPositionMatrix()
+                local eulerAngles = l:mat2eulerZYX(modelMatrix)
+                l.rot = ease(l.rot, -eulerAngles * (l.factor or 1), l.speed, l.interp or "linear")
+            else
+                -- Use the existing method
+                l.rot = ease(l.rot, l.__metatable and -l.__metatable.rot * (l.factor or 1), l.speed, l.interp or "linear")
+            end
         end
     end
 end
