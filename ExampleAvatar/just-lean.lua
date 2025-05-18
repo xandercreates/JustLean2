@@ -248,10 +248,11 @@ head.activeHead = {}
 ---@param speed number
 ---@param tilt number
 ---@param interp string
+---@param strength table|Vector2|number?
 ---@param vanillaHead boolean
 ---@param enabled boolean
 ---@return head
-function head.new(self, modelpart, speed, tilt, interp, vanillaHead, enabled)
+function head.new(self, modelpart, speed, tilt, interp, strength, vanillaHead, enabled)
     local self = setmetatable({}, head)
     ---@class head
     self.modelpart = modelpart
@@ -260,7 +261,14 @@ function head.new(self, modelpart, speed, tilt, interp, vanillaHead, enabled)
     self.vanillaHead = vanillaHead or false
     self._rot = vec(0, 0, 0)
     self.rot = vec(0, 0, 0)
-    self.tilt = (1 / (tilt or 4))
+    if type(strength) == "table" then
+        self.strength = vec(strength.x or strength[1], strength.y or strength[2], 1)
+    elseif type(strength) == "number" then
+        self.strength = vec(strength, strength, 1)
+    else
+        self.strength = strength
+    end
+    self.tilt = (1 / (tilt or 4)) * (self.strength.y or self.strength[2] or 1)
     self.interp = interp or "inOutSine"
 
     function self:disable(x)
@@ -392,6 +400,7 @@ function cratesAPI:tick()
             speed = false,
             _rot = vec(0,0,0),
             rot = vec(0,0,0),
+            strength = vec(1,1,1),
             enabled = true
         }
     end
@@ -402,10 +411,10 @@ function cratesAPI:tick()
             for id_l, y in pairs(le) do
                 if id_h == id_l then --insurance
                 local player_rot = headRot
-                local fpr = cratesAPI.silly and (-player_rot).xy_ or player_rot - vec(y.rot.x, y.rot.y, -y.rot.y / 4) 
+                local fpr = cratesAPI.silly and (-player_rot).xy_ or player_rot - vec(y.rot.x, y.rot.y, -y.rot.y / 4)
                 local final = cratesAPI.silly and vehicle and (((vanilla_model.HEAD:getOriginRot()+180)%360)-180) - vec(y.rot.x, y.rot.y, -y.rot.y / 4) or fpr
                     v.rot:set(ease(v.rot,
-                        final+(vanilla_model.HEAD:getOffsetRot() or vec(0,0,0)), v.speed or 0.5,
+                        (final*v.strength)+(vanilla_model.HEAD:getOffsetRot() or vec(0,0,0)), v.speed or 0.5,
                         v.interp or "inOutSine"))
                 end
             end

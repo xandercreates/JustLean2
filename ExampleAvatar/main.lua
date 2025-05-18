@@ -14,7 +14,8 @@ local head = cAPI.head:new(       --optional
     models.model.root.Torso.Head, --ModelPart, change this accordingly
     0.6,                          --speed
     1,                            --Tilt. The higher the less
-    "inOutCubic",                 --interpolation method. Takes string, Valid vals: "linear", "inOutSine", "inOutCubic"
+    "inOutQuadratic",                 --interpolation method. Takes string, Valid vals: "linear", "inOutSine", "inOutCubic"
+    {0.5,1},
     true,                         --Rotate Vanilla Head Instead (Will rotate modelpart if it follows vanilla head)
     true                          --enabled or not
 )
