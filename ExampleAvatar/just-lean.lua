@@ -411,14 +411,13 @@ function cratesAPI:tick()
             for id_l, y in pairs(le) do
                 if id_h == id_l then --insurance
                 local player_rot = headRot
-                local fpr = cratesAPI.silly and (-player_rot).xy_ or player_rot - vec(y.rot.x, y.rot.y, -y.rot.y / 4)
-                local final = cratesAPI.silly and vehicle and (((vanilla_model.HEAD:getOriginRot()+180)%360)-180) - vec(y.rot.x, y.rot.y, -y.rot.y / 4) or fpr
+                local fpr = cratesAPI.silly and (-player_rot).xy_ or player_rot - vec(y.rot.x, y.rot.y, -y.rot.y / (v.tilt or 4))
+                local final = cratesAPI.silly and vehicle and (((vanilla_model.HEAD:getOriginRot()+180)%360)-180) - vec(y.rot.x, y.rot.y, -y.rot.y / (v.tilt or 4)) or fpr
                     v.rot:set(ease(v.rot,
                         (final*v.strength)+(vanilla_model.HEAD:getOffsetRot() or vec(0,0,0)), v.speed or 0.5,
                         v.interp or "inOutSine"))
                 end
             end
-            if v.tilt == 0 then v.tilt = 0.5 end
         end
     end
 
