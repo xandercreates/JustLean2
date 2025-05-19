@@ -15,7 +15,7 @@ local head = cAPI.head:new(       --optional
     0.6,                          --speed
     1,                            --Tilt. The higher the less
     "inOutQuadratic",                 --interpolation method. Takes string, Valid vals: "linear", "inOutSine", "inOutCubic"
-    {0.5,1},
+    {1,1},
     true,                         --Rotate Vanilla Head Instead (Will rotate modelpart if it follows vanilla head)
     true                          --enabled or not
 )
