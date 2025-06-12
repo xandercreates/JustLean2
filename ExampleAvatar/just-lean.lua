@@ -67,6 +67,7 @@ function events.tick()
 
 end
 ---@diagnostic enable
+---@diagnostic disable: duplicate-set-field
 --#endregion
 --#region 'Math Extras'
 ---@class Easings
