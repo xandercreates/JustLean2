@@ -1,7 +1,25 @@
 --[[
 Rewrite Structure Heavily Inspired by Squishy's API
-]]                                                       --
+]]
+
+--#region 'Math Setup'
+local sin, cos, abs, asin, atan, atan2, min, max, map, lerp = math.sin, math.cos, math.abs, math.asin, math.atan, math.atan2, math.min, math.max, math.map, math.lerp
+--#endregion
+
+--#region 'cratesAPI Initialization'
+---@class cratesAPI
+local cratesAPI = {}
+cratesAPI.__index = cratesAPI
+cratesAPI.allowAutoUpdates = true
+cratesAPI.enabled = true
+cratesAPI.debug = false
+cratesAPI.exposeEasing = true
+cratesAPI.silly = false
+--#endregion
+
+
 --#region 'CompatChecks'
+---@diagnostic disable
 ---@param message string
 ---@param level number ?
 ---@param prefix string ?
@@ -48,70 +66,91 @@ function events.tick()
     end
 
 end
-
+---@diagnostic enable
 --#endregion
 --#region 'Math Extras'
----@diagnostic disable
-
 ---@class Easings
 local easings = {}
 
 ---@private
----@param a number|Vector.any|Matrix.any?
----@param b number|Vector.any|Matrix.any?
----@param t number
----@return number|Vector2|Vector3|Vector4|Matrix?
+---@generic A: number | Vector| Matrix
+---@generic B: number | Vector| Matrix
+---@generic T: number
+---@param a A
+---@param b B
+---@param t T
+---@return number | A | B | T
 function easings.inOutSine(a, b, t)
-    return math.map(-(math.cos(math.pi * t) - 1) / 2, 0, 1, a, b)
+    return map(-(math.cos(math.pi * t) - 1) / 2, 0, 1, a, b)
 end
 
 ---@private
----@param a number|Vector2|Vector3|Vector4|Matrix?
----@param b number|Vector2|Vector3|Vector4|Matrix?
----@param t number
----@return number|Vector2|Vector3|Vector4|Matrix?
+---@generic A: number | Vector| Matrix
+---@generic B: number | Vector| Matrix
+---@generic T: number
+---@param a A
+---@param b B
+---@param t T
+---@return number | A | B | T
 function easings.inOutCubic(a, b, t)
     local v = t < 0.5 and 4 * t ^ 3 or 1 - (-2 * t + 2) ^ 3 / 2
-    return math.map(v, 0, 1, a, b)
+    return map(v, 0, 1, a, b)
 end
 
+---@generic A: number | Vector| Matrix
+---@generic B: number | Vector| Matrix
+---@generic T: number
+---@param a A
+---@param b B
+---@param t T
+---@return number | A | B | T
 function easings.linear(a,b,t)
-    return math.lerp(a,b,t)
+    return lerp(a,b,t)
 end
 
 ---@private
----@param a number|Vector2|Vector3|Vector4|Matrix?
----@param b number|Vector2|Vector3|Vector4|Matrix?
----@param t number
----@return number|Vector2|Vector3|Vector4|Matrix?
+---@generic A: number | Vector| Matrix
+---@generic B: number | Vector| Matrix
+---@generic T: number
+---@param a A
+---@param b B
+---@param t T
+---@return number | A | B | T
 function easings.inOutQuadratic(a,b,t)
     local v = t < 0.5 and 2 * t * t or 1 - (-2 * t + 2) ^ 2 / 2
-    return math.map(v, 0, 1, a, b)
+    return map(v, 0, 1, a, b)
 end
 
 ---@private
----@param a number|Vector2|Vector3|Vector4|Matrix?
----@param b number|Vector2|Vector3|Vector4|Matrix?
----@param t number
----@param s string
----@return number|Vector2|Vector3|Vector4|Matrix?
+---@generic A: number | Vector| Matrix
+---@generic B: number | Vector| Matrix
+---@generic T: number
+---@generic S: string
+---@param a A
+---@param b B
+---@param t T
+---@param s S
+---@return number | A | B | T
 local function ease(a, b, t, s)
-    return easings[s](a, b, t)
+    return easings[s](a, b, t) --[[@as number | Vector| Matrix]]
 end
 
 ---@private
----@param val number|Vector2|Vector3|Vector4|Matrix?
----@param min number|Vector2|Vector3|Vector4|Matrix?
----@param max number|Vector2|Vector3|Vector4|Matrix?
----@return number|Vector2|Vector3|Vector4|Matrix?
-local function clamp(val, min, max)
-    return math.min(math.max(val, min), max)
+---@generic v: number | Vector | Matrix
+---@generic a: number | Vector | Matrix
+---@generic b: number | Vector | Matrix|
+---@param v v
+---@param a a
+---@param b b
+---@return number | v | a | b |
+local function clamp(v, a, b)
+    return min(max(v, a), b)
 end
 
 ---@protected
 ---@return number
 local function velmod()
-    if not player:isLoaded() then return end
+    if not player:isLoaded() then return nil end
     if player:getPose() == "STANDING" then
         local velocityLength = (player:getVelocity().x_z*player:getLookDir()):length()*10
         --log(velocityLength)
@@ -121,23 +160,10 @@ local function velmod()
         return 1000
     end
 end
----@diagnostic enable
---#endregion
-
---#region 'Alias'
-local sin, cos, abs, asin, atan2 = math.sin, math.cos, math.abs, math.asin, math.atan2
 --#endregion
 
 --#region 'Just-Lean'
----@class cratesAPI
-local cratesAPI = {}
-cratesAPI.__index = cratesAPI
-cratesAPI.allowAutoUpdates = true
-cratesAPI.enabled = true
-cratesAPI.debug = false
-cratesAPI.exposeEasing = true
-cratesAPI.silly = false
-
+---@diagnostic disable
 function cratesAPI:enable()
     self.enabled = true
     return self
@@ -183,7 +209,7 @@ end
 function cratesAPI:getRot()
     return self._rot
 end
-
+---@diagnostic enable
 ---@class lean
 lean = {}
 lean.__index = lean
@@ -297,7 +323,7 @@ influence.activeInfluences = {}
 ---@param speed number
 ---@param interp string
 ---@param factor number|table|Vector3?
----@param metatable table|metatable|nil
+---@param metatable table|nil
 ---@param enabled boolean
 ---@param usematrix boolean
 ---@return influence

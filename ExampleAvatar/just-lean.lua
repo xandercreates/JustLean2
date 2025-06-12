@@ -6,6 +6,17 @@ Rewrite Structure Heavily Inspired by Squishy's API
 local sin, cos, abs, asin, atan, atan2, min, max, map, lerp = math.sin, math.cos, math.abs, math.asin, math.atan, math.atan2, math.min, math.max, math.map, math.lerp
 --#endregion
 
+--#region 'cratesAPI Initialization'
+---@class cratesAPI
+local cratesAPI = {}
+cratesAPI.__index = cratesAPI
+cratesAPI.allowAutoUpdates = true
+cratesAPI.enabled = true
+cratesAPI.debug = false
+cratesAPI.exposeEasing = true
+cratesAPI.silly = false
+--#endregion
+
 
 --#region 'CompatChecks'
 ---@diagnostic disable
@@ -152,15 +163,6 @@ end
 --#endregion
 
 --#region 'Just-Lean'
----@class cratesAPI
-local cratesAPI = {}
-cratesAPI.__index = cratesAPI
-cratesAPI.allowAutoUpdates = true
-cratesAPI.enabled = true
-cratesAPI.debug = false
-cratesAPI.exposeEasing = true
-cratesAPI.silly = false
-
 ---@diagnostic disable
 function cratesAPI:enable()
     self.enabled = true
