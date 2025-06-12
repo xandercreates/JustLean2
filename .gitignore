@@ -3,3 +3,4 @@ ExampleAvatar/luarc.json
 /.vscode
 luarc.json
 cratesAPI.code-workspace
+.luarc.json
