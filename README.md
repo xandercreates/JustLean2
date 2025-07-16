@@ -1,3 +1,3 @@
-# Just-Lean Two
+## Just-Lean 2
 
 Just-Lean Rewrite
