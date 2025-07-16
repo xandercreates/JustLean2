@@ -3,20 +3,7 @@ Rewrite Structure Heavily Inspired by Squishy's API
 ]]
 
 --#region 'Math Setup'
-local sin, cos, abs, asin, atan, atan2, min, max, map, lerp, pi, lgar, next = math.sin, math.cos, math.abs, math.asin, math.atan, math.atan2, math.min, math.max, math.map, math.lerp, math.pi, math.log, next
---#endregion
-
---#region 'Aliases (Doc Purposes)'
----@alias lean.new fun(self?: self, modelpart: ModelPart, minLean: table|Vector2, maxLean: table|Vector2, speed?: number, interp: string, enabled: boolean)
----@alias head.new fun(self?: self, modelpart: ModelPart|VanillaModelPart, speed?: number, interp: string, vanillaHead: boolean, enabled: boolean)
----@alias influence.new fun(self?: self, modelpart: ModelPart, speed?: number, interp?: string, factor: number|table|Vector, metatable: table, enabled?: boolean)
----@alias legs.add fun(self?: self, advanced?: boolean, options?: table, enabled: boolean, debug?: boolean|nil, modelpart: ModelPart, speed?: number, strength: number, interp?: validInterps, metatable: table, side: string)
----@alias validInterps
----| "linear"
----| "inOutSine"
----| "inOutQuadratic"
----| "inOutCubic"
-
+local sin, cos, abs, asin, atan, atan2, min, max, map, lerp = math.sin, math.cos, math.abs, math.asin, math.atan, math.atan2, math.min, math.max, math.map, math.lerp
 --#endregion
 
 --#region 'cratesAPI Initialization'
@@ -28,8 +15,8 @@ cratesAPI.enabled = true
 cratesAPI.debug = false
 cratesAPI.exposeEasing = true
 cratesAPI.silly = false
-cratesAPI.credits = true
 --#endregion
+
 
 --#region 'CompatChecks'
 ---@diagnostic disable
@@ -139,19 +126,6 @@ end
 ---@generic A: number | Vector| Matrix
 ---@generic B: number | Vector| Matrix
 ---@generic T: number
----@param a A
----@param b B
----@param t T
----@return number | A | B | T
-function easings.inOutCirc(a,b,t)
-    local v = t < 0.5 and ((1 - math.sqrt(1 - (2 * t)^2)) / 2) or ((math.sqrt(1 - (-2 * t + 2)^2) + 1) / 2)
-    return map(v, 0, 1, a, b)
-end
-
----@private
----@generic A: number | Vector| Matrix
----@generic B: number | Vector| Matrix
----@generic T: number
 ---@generic S: string
 ---@param a A
 ---@param b B
@@ -189,7 +163,7 @@ local function velmod()
 end
 --#endregion
 
---#region 'Metamethods'
+--#region 'Just-Lean'
 ---@diagnostic disable
 function cratesAPI:enable()
     self.enabled = true
@@ -215,6 +189,7 @@ end
 
 function cratesAPI:add(...)
     local vals = { ... }
+    --log(vals)
     if #vals == 0 then
         self.offset:reset()
         return self
@@ -223,6 +198,7 @@ function cratesAPI:add(...)
         return self
     elseif (not type(vals[1]) == "Vector3") and type(vals[1]) == "number" then
         local vx, vy, vz = table.unpack(vals)
+        --log(vx,vy,vz)
         self.offset:add(vx,vy,vz)
         return self
     else
@@ -234,11 +210,7 @@ end
 function cratesAPI:getRot()
     return self._rot
 end
---#endregion
-
-
 ---@diagnostic enable
---#region 'Leaning!'
 ---@class lean
 lean = {}
 lean.__index = lean
@@ -249,10 +221,11 @@ lean.activeLeaning = {}
 ---@param maxLean Vector2 | table?
 ---@param speed number
 ---@param interp string
+---@param breathing boolean
 ---@param enabled boolean
 ---@return lean
 function lean.new(self, modelpart, minLean, maxLean, speed, interp, breathing, enabled)
-    local self = setmetatable({}, lean) ---@diagnostic disable-line
+    local self = setmetatable({}, lean)
     self.modelpart = modelpart
     if type(minLean) == "table" then
         self.minLean = vec(minLean.x or minLean[1], minLean.y or minLean[2]) or vec(-45, -15)
@@ -291,39 +264,45 @@ function lean.new(self, modelpart, minLean, maxLean, speed, interp, breathing, e
     table.insert(lean.activeLeaning, self)
     return self
 end
---#endregion
 
---#region 'Head Stuff'
 ---@class head
----@field new fun(self?: self, modelpart: ModelPart|VanillaModelPart, speed?: number, interp: string, vanillaHead: boolean, enabled: boolean)
 head = {}
 head.__index = head
 setmetatable(head, cratesAPI)
 head.activeHead = {}
 ---@param self head
 ---@param modelpart ModelPart
----@param speed? number
----@param tilt? number
----@param interp? string
----@param vanillaHead? boolean
+---@param speed number
+---@param tilt number
+---@param interp string
+---@param strength table|Vector2|number?
+---@param vanillaHead boolean
 ---@param enabled boolean
 ---@return head
-function head.new(self, modelpart, speed, tilt, interp, vanillaHead, enabled)
-    local self = setmetatable({}, head) ---@diagnostic disable-line 
+function head.new(self, modelpart, speed, tilt, interp, strength, vanillaHead, enabled)
+    local self = setmetatable({}, head)
+    ---@class head
     self.modelpart = modelpart
     self.enabled = enabled or true
     self.speed = speed or 0.3625
     self.vanillaHead = vanillaHead or false
     self._rot = vec(0, 0, 0)
     self.rot = vec(0, 0, 0)
-    self.tilt = (1 / (tilt or 4))
+    if type(strength) == "table" then
+        self.strength = vec(strength.x or strength[1], strength.y or strength[2], 1)
+    elseif type(strength) == "number" then
+        self.strength = vec(strength, strength, 1)
+    else
+        self.strength = strength
+    end
+    self.tilt = (1 / (tilt or 4)) * (self.strength.y or self.strength[2] or 1)
     self.interp = interp or "inOutSine"
 
     function self:disable(x)
         if not x then
             self.rot = vec(0, 0, 0)
             self.modelpart:setOffsetRot()
-            vanilla_model.HEAD:setRot() ---@diagnostic disable-line 
+            vanilla_model.HEAD:setRot()
         end
         self.enabled = false
         return self
@@ -331,24 +310,26 @@ function head.new(self, modelpart, speed, tilt, interp, vanillaHead, enabled)
 
     table.insert(head.activeHead, self)
     return self
-    ---@diagnostic enable
 end
 
 
----@deprecated
---#region 'Influence! (Deprecated)'
+
 ---@class influence
----@field new fun(self, modelpart: ModelPart, speed?: number, interp?: string, factor: number|table|Vector, metatable: table, enabled?: boolean)
 influence = {}
 influence.__index = influence
 setmetatable(influence, cratesAPI)
 influence.activeInfluences = {}
 ---@param self influence
----@param ... any
+---@param modelpart ModelPart
+---@param speed number
+---@param interp string
+---@param factor number|table|Vector3?
+---@param metatable table|nil
+---@param enabled boolean
+---@param usematrix boolean
 ---@return influence
-function influence.new(self, ...)
-    local self = setmetatable({}, influence) ---@diagnostic disable-line 
-    local modelpart, speed, interp, factor, metatable, enabled = ...
+function influence.new(self, modelpart, speed, interp, factor, metatable, enabled, usematrix)
+    local self = setmetatable({}, influence)
     self.modelpart = modelpart
     self.speed = speed
     self.interp = interp
@@ -356,115 +337,57 @@ function influence.new(self, ...)
     self.__metatable = metatable or false
     self.rot = self.__metatable and (-self.__metatable.modelpart:getOffsetRot()) or vec(0,0,0)
     self._rot = self.rot
-    self.factor = type(factor) == "table" and #factor > 1 and vec(factor.x or factor[1], factor.y or factor[2], factor.z or factor[3] or 1) or type(factor) == "number" and vec(factor, factor, factor) or 1
+    self.usematrix = usematrix
     if type(factor) == "table" then
+        local x,y,z = table.unpack(factor)
+        self.factor = vec(x or 1,y or 1,z or 1)
         if #factor > 3 then
             error("Maximum Length of 3 Expected",4)
         elseif #factor == 0 then
             error("No Values given")
         end
+    elseif type(factor) == "Vector3" then
+        self.factor = factor
+    elseif type(factor) == "number" then
+        self.factor = vec(factor, factor, factor)
+    else
+        self.factor = 1
     end
+
     table.insert(influence.activeInfluences, self)
     return self
 end
---#endregion
 
---#region 'Legs!'
----@class legs
----@field add fun(self?: self, advanced?: boolean, options?: table, enabled: boolean, debug?: boolean|nil, modelpart: ModelPart, speed?: number, strength: number, interp?: validInterps, metatable: table, side: string)
-legs = {}
-legs.__index = legs
-setmetatable(legs, cratesAPI)
-legs.active = {}
-
----@param self? legs
----@param advanced boolean
----@param options table
----@param enabled boolean
----@param debug boolean
----@param modelpart ModelPart
----@param speed number
----@param strength number
----@param interp validInterps
----@param metatable any
----@param side any
-function legs.add(self, advanced, options, enabled, debug, modelpart, speed, strength, interp, metatable, side) 
-    local self = setmetatable({}, legs) --[[@as table]]
-    self.debug = advanced and options and options.debug or debug
-    self.modelpart = advanced and options and options.modelpart or modelpart
-    self.speed = advanced and options and options.speed or speed or 0.5
-    self.strength = advanced and options and options.strength or strength or 1.5
-    self.int = advanced and options and options.interp or options and options.int or interp or "linear"
-    self.__metatable = advanced and options and options.metatable or metatable or legs
-    self.enabled = advanced and options and options.enabled or enabled or false
-    self.side = advanced and options and options.side or side
-    self.math = function(self)
-        if player:isLoaded() then
-        return {
-            left = {
-                r = vec((self.__metatable.rot.y/14) + (self.__metatable.rot.x/20), (self.__metatable.rot.y/20), player:isCrouching() and -(self.__metatable.rot.y/self.strength) or 0),
-                p = vec(player:isCrouching() and self.__metatable.rot.y/self.strength/4 or 0, 0, self.__metatable.rot.y/40)
-            },
-            right = {
-                r = vec(-(self.__metatable.rot.y/14) + (self.__metatable.rot.x/20), -(self.__metatable.rot.y/20), player:isCrouching() and -(self.__metatable.rot.y/self.strength) or 0),
-                p = vec(player:isCrouching() and self.__metatable.rot.y/self.strength/4 or 0, 0, -self.__metatable.rot.y/40)
-            }
-        }
-    else
-        return {
-            left = {r = vec(0,0,0), p = vec(0,0,0)}, right = {r = vec(0,0,0), p= vec(0,0,0)}
-        }
-        end
+---@param mat Matrix4|Matrix3
+---@return Vector3
+function influence:mat2eulerZYX(mat)
+    ---@type number, number, number
+    local x, y, z
+    local query = mat.v31 -- are we in Gimbal Lock?
+    if abs(query) < 0.9999 then
+        y = asin(-mat.v31)
+        z = atan2(mat.v21, mat.v11)
+        x = atan2(mat.v32, mat.v33)
+    elseif query < 0 then -- approx -1, gimbal lock
+        y = pi / 2
+        z = -atan2(-mat.v23, mat.v22)
+        x = 0
+    else -- approx 1, gimbal lock
+        y = -pi / 2
+        z = atan2(-mat.v23, mat.v22)
+        x = 0
     end
-    self.rot = vec(0,0,0)
-    self._rot = self.rot
-    self.pos = vec(0,0,0)
-    self._pos = self.pos
-    if advanced and options then
-        if next(options) == nil then
-            if self.debug then
-                print("Empty Options Table! Falling back to Parameter Arguments!")
-            end
-        end
-    end
-    table.insert(legs.active, self)
-    return self
+    return vec(x, y, z):toDeg()
 end
+
 --#endregion
 
 --#region 'Update'
 local hed = head.activeHead
 local le = lean.activeLeaning
 local influ = influence.activeInfluences
-local legz = legs.active
 local headRot = cratesAPI.silly and ((((player:getRot()-vec(0,player:getBodyYaw()))+180)%360)-180).xy_ or (((vanilla_model.HEAD:getOriginRot()+180)%360)-180)
-
----@class cratesAPI.lean: cratesAPI
----@field new lean.new
-cratesAPI.lean = lean
-setmetatable(cratesAPI.lean, cratesAPI)
-
----@class cratesAPI.head: cratesAPI
----@field new head.new
-cratesAPI.head = head
-setmetatable(cratesAPI.head, cratesAPI)
-
---#region 'Deprecated'
----@deprecated
----@class cratesAPI.influence: cratesAPI
----@field new influence.new
-cratesAPI.influence = influence
-setmetatable(cratesAPI.influence, cratesAPI)
---#endregion
-
----@class cratesAPI.legs: cratesAPI
----@field add legs.add
-cratesAPI.legs = legs
-setmetatable(cratesAPI.legs, cratesAPI)
-
-
 function cratesAPI:avatar_init()
-
     if self.exposeEasing then
         math.ease = ease
     else
@@ -480,17 +403,6 @@ function cratesAPI:avatar_init()
     for _, k in pairs(le) do
         k.rot:set(vec(0, 0, 0):add(k.offset))
         k._rot:set(k.rot)
-    end
-
-    for _, m in pairs(legz) do
-        m.rot:set(m:math()[m.side].r)
-        m._rot:set(m.rot)
-        m.pos:set(m:math()[m.side].p)
-        m._pos:set(m.pos)
-    end
-
-    if self.credits and host:isHost() then
-        printJson('["",{"text":"=========|Credits|=========","bold":true,"color":"#FF7F00"},{"text":"\n"},{"text":"              Auria","bold":true,"color":"#DF99C7","hoverEvent":{"action":"show_text","contents":[{"text":"@auriafoxgirl ","color":"#DF99C7"},{"text":"","color":"gold","font":"figura:emoji_portrait"},{"text":"\n"},{"text":"Warn ","bold":true,"color":"green","font":"minecraft:default"},{"text":"Function","color":"green"}]}},{"text":"\n"},{"text":"              Shiji","bold":true,"color":"#E6662E","hoverEvent":{"action":"show_text","contents":[{"text":"@the_command ","color":"#E6662E"},{"text":"\n"},{"text":"Leg Function Math","color":"gold"}]}},{"text":"\n"},{"text":"           JimmyHellp","bold":true,"color":"dark_green","hoverEvent":{"action":"show_text","contents":[{"text":"@jimmyhelp ","color":"dark_green"},{"text":"","color":"gold","font":"figura:emoji_portrait"},{"text":"\n"},{"text":"Compat Checker Code (listfiles)","bold":true,"underlined":true,"color":"dark_green","font":"minecraft:default"}]}},{"text":"\n"},{"text":"=========|Credits|=========","bold":true,"color":"#FF7F00"}]')
     end
 end
 
@@ -515,22 +427,24 @@ function cratesAPI:tick()
             speed = false,
             _rot = vec(0,0,0),
             rot = vec(0,0,0),
+            strength = vec(1,1,1),
             enabled = true
         }
     end
     for id_h, v in pairs(hed) do
         v._rot:set(v.rot)
         if v.enabled then
-            v.selHead = v.modelpart or v.vanillaHead and vanilla_model.HEAD ---@as ModelPart
+            v.selHead = v.modelpart or v.vanillaHead and vanilla_model.HEAD
             for id_l, y in pairs(le) do
                 if id_h == id_l then --insurance
                 local player_rot = headRot
-                local fpr = cratesAPI.silly and (-player_rot).xy_ or player_rot - vec(y.rot.x, y.rot.y, -y.rot.y / 4) 
-                local final = cratesAPI.silly and vehicle and (((vanilla_model.HEAD:getOriginRot()+180)%360)-180) - vec(y.rot.x, y.rot.y, -y.rot.y / 4) or fpr
-                    v.rot:set(ease(v.rot, final, v.speed or 0.5, v.interp or "inOutSine"))
+                local fpr = cratesAPI.silly and (-player_rot).xy_ or player_rot - vec(y.rot.x, y.rot.y, -y.rot.y / (v.tilt or 4))
+                local final = cratesAPI.silly and vehicle and (((vanilla_model.HEAD:getOriginRot()+180)%360)-180) - vec(y.rot.x, y.rot.y, -y.rot.y / (v.tilt or 4)) or fpr
+                    v.rot:set(ease(v.rot,
+                        (final*v.strength)+(vanilla_model.HEAD:getOffsetRot() or vec(0,0,0)), v.speed or 0.5,
+                        v.interp or "inOutSine"))
                 end
             end
-            if v.tilt == 0 then v.tilt = 0.5 end
         end
     end
 
@@ -547,39 +461,42 @@ function cratesAPI:tick()
             local targetVel = velmod()
             local lean_x = clamp(sin(cratesAPI.silly and -mainrot.x or mainrot.x / targetVel) * 45.5, k.minLean.x, k.maxLean.x)
             local lean_y = clamp(sin(cratesAPI.silly and -mainrot.y or mainrot.y) * 45.5, k.minLean.y, k.maxLean.y)
-            local lean =  not player:isCrouching() and vec(
-            clamp(sin(cratesAPI.silly and -mainrot.x or mainrot.x / targetVel) * 45.5, k.minLean.x, k.maxLean.x), 
-            clamp(sin(cratesAPI.silly and -mainrot.y or mainrot.y) * 45.5, k.minLean.y, k.maxLean.y),
-            clamp(sin(cratesAPI.silly and -mainrot.y or mainrot.y) * 45.5, k.minLean.y, k.maxLean.y) * -0.075
-        ):add(k.offset) or vec(0,0,0) --[[@as Vector3]]
             local rot = not player:isCrouching() and
-            vec(lean_x, lean_y, -lean_y * 0.075):add(k.offset) or vec(0, 0, 0)
+            vec(lean_x, lean_y, lean_y * 0.075):add(k.offset) or vec(0, 0, 0)
             if k.breathing then
-                k.rot:set(ease(k.rot, rot + breathe, k.speed or 0.3, k.interp or "linear"))
+                k.rot:set(ease(k.rot, rot + breathe + (vanilla_model.HEAD:getOffsetRot() or vec(0,0,0)), k.speed or 0.3, k.interp or "linear"))
             else
-                k.rot:set(ease(k.rot, rot, k.speed or 0.3, k.interp or "linear"))
+                k.rot:set(ease(k.rot, rot + (vanilla_model.HEAD:getOffsetRot() or vec(0,0,0)), k.speed or 0.3, k.interp or "linear"))
             end
         end
     end
-
     for _, l in pairs(influ) do
         if l.enabled then
+            for _, k in pairs(le) do
+                if not l.__metatable then
+                    l.__metatable = k
+                end
+            end
             l._rot:set(l.rot)
-            l.rot = ease(l.rot, -l.__metatable.rot * l.factor or 1, l.speed, l.interp or "linear")
+            if l.usematrix and l.__metatable then
+                -- Use the matrix conversion if enabled
+                local modelMatrix = l.__metatable.modelpart:getPositionMatrix()
+                local eulerAngles = l:mat2eulerZYX(modelMatrix)
+                l.rot = ease(l.rot, -eulerAngles * (l.factor or 1), l.speed, l.interp or "linear")
+            else
+                -- Use the existing method
+                l.rot = ease(l.rot, l.__metatable and -l.__metatable.rot * (l.factor or 1), l.speed, l.interp or "linear")
+            end
         end
-    end
-
-    for _, m in pairs(legz) do
-        local mar = m:math()[m.side].r
-        local mapos = m:math()[m.side].p
-        m._rot:set(m.rot)
-        m._pos:set(m.pos)
-        --log(m:math()[m.side])
-        m.rot:set(ease(m.rot, mar, m.speed, m.int))
-        m.pos:set(ease(m.pos, mapos, m.speed, m.int))
     end
 end
 
+cratesAPI.lean = lean
+setmetatable(cratesAPI.lean, cratesAPI)
+cratesAPI.head = head
+setmetatable(cratesAPI.head, cratesAPI)
+cratesAPI.influence = influence
+setmetatable(cratesAPI.influence, cratesAPI)
 
 function cratesAPI:render(delta)
     if not self.enabled then return self end
@@ -587,18 +504,11 @@ function cratesAPI:render(delta)
     
     for _, v in pairs(hed) do
         if v.enabled then
-            vanilla_model.HEAD:setRot(0, 0, 0)
-            local fRot = ease(v._rot, v.rot, delta, "linear")
-            if centRot then
-                --log(type(v.selHead))
-                if type(v.selHead) == "VanillaModelPart" then
-                    cRots.vParts.Head.ofr:set(fRot)
-                else
-                    cRots.mParts.model_head.ofr:set(fRot)
-                end
-            else
-                v.selHead:setOffsetRot(fRot)
+            if type(v.selHead) ~= "VanillaModelPart" then
+                vanilla_model.HEAD:setRot(0,0,0)
             end
+            local fRot = ease(v._rot, v.rot, delta, "linear")
+            v.selHead:setRot(fRot)
         else
             vanilla_model.HEAD:setRot()
         end
@@ -607,11 +517,7 @@ function cratesAPI:render(delta)
     for _, k in pairs(le) do
         if k.enabled then
             local fRot = ease(k._rot, k.rot, delta, "linear")
-            if centRot then
-                cRots.mParts.model_torso.ofr:set(fRot)
-            else
-                k.modelpart:setOffsetRot(fRot)
-            end
+            k.modelpart:setOffsetRot(fRot)
         end
     end
 
@@ -620,13 +526,6 @@ function cratesAPI:render(delta)
             local fRot = ease(l._rot, l.rot, delta, "linear")
             l.modelpart:setOffsetRot(fRot)
         end
-    end
-
-    for _, m in pairs(legz) do
-        local lRot = ease(m._rot, m.rot, delta, "linear")
-        local lPos = ease(m._pos, m.pos, delta, "linear")
-        m.modelpart:setOffsetRot(lRot)
-        m.modelpart:setPos(lPos)
     end
 end
 
