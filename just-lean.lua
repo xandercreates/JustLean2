@@ -2,6 +2,9 @@
 Rewrite Structure Heavily Inspired by Squishy's API
 ]]
 
+
+---@diagnostic disable: duplicate-set-field
+
 --#region 'Math Setup'
 local sin, cos, abs, asin, atan, atan2, min, max, map, lerp = math.sin, math.cos, math.abs, math.asin, math.atan, math.atan2, math.min, math.max, math.map, math.lerp
 --#endregion
@@ -19,7 +22,7 @@ cratesAPI.silly = false
 
 
 --#region 'CompatChecks'
----@diagnostic disable
+
 ---@param message string
 ---@param level number ?
 ---@param prefix string ?
@@ -66,84 +69,65 @@ function events.tick()
     end
 
 end
----@diagnostic enable
----@diagnostic disable: duplicate-set-field
+
+
 --#endregion
 --#region 'Math Extras'
 ---@class Easings
 local easings = {}
 
 ---@private
----@generic A: number | Vector| Matrix
----@generic B: number | Vector| Matrix
----@generic T: number
----@param a A
----@param b B
----@param t T
----@return number | A | B | T
+---@param a number | Vector | Matrix
+---@param b number | Vector | Matrix
+---@param t number
+---@return number | Vector | Matrix
 function easings.inOutSine(a, b, t)
     return map(-(math.cos(math.pi * t) - 1) / 2, 0, 1, a, b)
 end
 
 ---@private
----@generic A: number | Vector| Matrix
----@generic B: number | Vector| Matrix
----@generic T: number
----@param a A
----@param b B
----@param t T
----@return number | A | B | T
+---@param a number | Vector | Matrix
+---@param b number | Vector | Matrix
+---@param t number
+---@return number | Vector | Matrix
 function easings.inOutCubic(a, b, t)
     local v = t < 0.5 and 4 * t ^ 3 or 1 - (-2 * t + 2) ^ 3 / 2
     return map(v, 0, 1, a, b)
 end
 
----@generic A: number | Vector| Matrix
----@generic B: number | Vector| Matrix
----@generic T: number
----@param a A
----@param b B
----@param t T
----@return number | A | B | T
+---@private
+---@param a number | Vector | Matrix
+---@param b number | Vector | Matrix
+---@param t number
+---@return number | Vector | Matrix
 function easings.linear(a,b,t)
     return lerp(a,b,t)
 end
 
 ---@private
----@generic A: number | Vector| Matrix
----@generic B: number | Vector| Matrix
----@generic T: number
----@param a A
----@param b B
----@param t T
----@return number | A | B | T
+---@param a number | Vector | Matrix
+---@param b number | Vector | Matrix
+---@param t number
+---@return number | Vector | Matrix
 function easings.inOutQuadratic(a,b,t)
     local v = t < 0.5 and 2 * t * t or 1 - (-2 * t + 2) ^ 2 / 2
     return map(v, 0, 1, a, b)
 end
 
 ---@private
----@generic A: number | Vector| Matrix
----@generic B: number | Vector| Matrix
----@generic T: number
----@generic S: string
----@param a A
----@param b B
----@param t T
----@param s S
----@return number | A | B | T
+---@param a number | Vector | Matrix
+---@param b number | Vector | Matrix
+---@param t number
+---@return number | Vector | Matrix
 local function ease(a, b, t, s)
     return easings[s](a, b, t) --[[@as number | Vector| Matrix]]
 end
 
 ---@private
----@generic v: number | Vector | Matrix
----@generic a: number | Vector | Matrix
----@generic b: number | Vector | Matrix|
----@param v v
----@param a a
----@param b b
----@return number | v | a | b |
+---@param v number | Vector | Matrix
+---@param a number | Vector | Matrix
+---@param b number | Vector | Matrix
+---@return number | Vector | Matrix
 local function clamp(v, a, b)
     return min(max(v, a), b)
 end
@@ -164,7 +148,7 @@ end
 --#endregion
 
 --#region 'Just-Lean'
----@diagnostic disable
+
 function cratesAPI:enable()
     self.enabled = true
     return self
@@ -187,30 +171,10 @@ function cratesAPI:toggle(x)
     return self
 end
 
-function cratesAPI:add(...)
-    local vals = { ... }
-    --log(vals)
-    if #vals == 0 then
-        self.offset:reset()
-        return self
-    elseif type(vals[1]) == "Vector3" then
-        self.offset:add(vals[1])
-        return self
-    elseif (not type(vals[1]) == "Vector3") and type(vals[1]) == "number" then
-        local vx, vy, vz = table.unpack(vals)
-        --log(vx,vy,vz)
-        self.offset:add(vx,vy,vz)
-        return self
-    else
-        return self
-       -- error("Expected Vector3 or Numbers")
-    end
-end
-
 function cratesAPI:getRot()
     return self._rot
 end
----@diagnostic enable
+
 ---@class lean
 lean = {}
 lean.__index = lean
