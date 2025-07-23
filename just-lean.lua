@@ -132,19 +132,19 @@ local function clamp(v, a, b)
     return min(max(v, a), b)
 end
 
----@protected
----@return number
-local function velmod()
-    if not player:isLoaded() then return nil end
-    if player:getPose() == "STANDING" then
-        local velocityLength = (player:getVelocity().x_z*player:getLookDir()):length()*10
-        --log(velocityLength)
-        local scaledVel = math.log(velocityLength + 1)
-        return clamp(scaledVel - 0.21585, 0, 0.06486) / 0.06486 * 9 + 1
-    else
-        return 1000
-    end
-end
+-- ---@protected
+-- ---@return number
+-- local function velmod()
+--     if not player:isLoaded() then return nil end
+--     if player:getPose() == "STANDING" then
+--         local velocityLength = (player:getVelocity().x_z*player:getLookDir()):length()*10
+--         --log(velocityLength)
+--         local scaledVel = math.log(velocityLength + 1)
+--         return clamp(scaledVel - 0.21585, 0, 0.06486) / 0.06486 * 9 + 1
+--     else
+--         return 1000
+--     end
+-- end
 --#endregion
 
 --#region 'Just-Lean'
@@ -398,7 +398,7 @@ function cratesAPI:tick()
     for id_h, v in pairs(hed) do
         v._rot:set(v.rot)
         if v.enabled then
-            v.selHead = v.modelpart or v.vanillaHead and vanilla_model.HEAD
+            v.selHead = v.modelpart ~= nil and v.modelpart or v.vanillaHead and vanilla_model.HEAD
             for id_l, y in pairs(le) do
                 if id_h == id_l then --insurance
                 local player_rot = headRot
@@ -422,7 +422,7 @@ function cratesAPI:tick()
                 abs(t) / 2.0,
                 (abs(cos(t)) / 16.0)
             )
-            local targetVel = velmod()
+            local targetVel = (math.log((player:getVelocity().x_z:length()*20) + 1 - 0.21585) * 0.06486 * 9 + 1)
             local lean_x = clamp(sin(cratesAPI.silly and -mainrot.x or mainrot.x / targetVel) * 45.5, k.minLean.x, k.maxLean.x)
             local lean_y = clamp(sin(cratesAPI.silly and -mainrot.y or mainrot.y) * 45.5, k.minLean.y, k.maxLean.y)
             local rot = not player:isCrouching() and
