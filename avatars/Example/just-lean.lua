@@ -2,24 +2,27 @@
 Rewrite Structure Heavily Inspired by Squishy's API
 ]]
 
+
+---@diagnostic disable: duplicate-set-field
+
 --#region 'Math Setup'
 local sin, cos, abs, asin, atan, atan2, min, max, map, lerp = math.sin, math.cos, math.abs, math.asin, math.atan, math.atan2, math.min, math.max, math.map, math.lerp
 --#endregion
 
---#region 'cratesAPI Initialization'
----@class cratesAPI
-local cratesAPI = {}
-cratesAPI.__index = cratesAPI
-cratesAPI.allowAutoUpdates = true
-cratesAPI.enabled = true
-cratesAPI.debug = false
-cratesAPI.exposeEasing = true
-cratesAPI.silly = false
+--#region 'just_lean Initialization'
+---@class just_lean
+local just_lean = {}
+just_lean.__index = just_lean
+just_lean.allowAutoUpdates = true
+just_lean.enabled = true
+just_lean.debug = false
+just_lean.exposeEasing = true
+just_lean.silly = false
 --#endregion
 
 
 --#region 'CompatChecks'
----@diagnostic disable
+
 ---@param message string
 ---@param level number ?
 ---@param prefix string ?
@@ -66,116 +69,97 @@ function events.tick()
     end
 
 end
----@diagnostic enable
----@diagnostic disable: duplicate-set-field
+
+
 --#endregion
 --#region 'Math Extras'
 ---@class Easings
 local easings = {}
 
 ---@private
----@generic A: number | Vector| Matrix
----@generic B: number | Vector| Matrix
----@generic T: number
----@param a A
----@param b B
----@param t T
----@return number | A | B | T
+---@param a number | Vector | Matrix
+---@param b number | Vector | Matrix
+---@param t number
+---@return number | Vector | Matrix
 function easings.inOutSine(a, b, t)
     return map(-(math.cos(math.pi * t) - 1) / 2, 0, 1, a, b)
 end
 
 ---@private
----@generic A: number | Vector| Matrix
----@generic B: number | Vector| Matrix
----@generic T: number
----@param a A
----@param b B
----@param t T
----@return number | A | B | T
+---@param a number | Vector | Matrix
+---@param b number | Vector | Matrix
+---@param t number
+---@return number | Vector | Matrix
 function easings.inOutCubic(a, b, t)
     local v = t < 0.5 and 4 * t ^ 3 or 1 - (-2 * t + 2) ^ 3 / 2
     return map(v, 0, 1, a, b)
 end
 
----@generic A: number | Vector| Matrix
----@generic B: number | Vector| Matrix
----@generic T: number
----@param a A
----@param b B
----@param t T
----@return number | A | B | T
+---@private
+---@param a number | Vector | Matrix
+---@param b number | Vector | Matrix
+---@param t number
+---@return number | Vector | Matrix
 function easings.linear(a,b,t)
     return lerp(a,b,t)
 end
 
 ---@private
----@generic A: number | Vector| Matrix
----@generic B: number | Vector| Matrix
----@generic T: number
----@param a A
----@param b B
----@param t T
----@return number | A | B | T
+---@param a number | Vector | Matrix
+---@param b number | Vector | Matrix
+---@param t number
+---@return number | Vector | Matrix
 function easings.inOutQuadratic(a,b,t)
     local v = t < 0.5 and 2 * t * t or 1 - (-2 * t + 2) ^ 2 / 2
     return map(v, 0, 1, a, b)
 end
 
 ---@private
----@generic A: number | Vector| Matrix
----@generic B: number | Vector| Matrix
----@generic T: number
----@generic S: string
----@param a A
----@param b B
----@param t T
----@param s S
----@return number | A | B | T
+---@param a number | Vector | Matrix
+---@param b number | Vector | Matrix
+---@param t number
+---@return number | Vector | Matrix
 local function ease(a, b, t, s)
     return easings[s](a, b, t) --[[@as number | Vector| Matrix]]
 end
 
 ---@private
----@generic v: number | Vector | Matrix
----@generic a: number | Vector | Matrix
----@generic b: number | Vector | Matrix|
----@param v v
----@param a a
----@param b b
----@return number | v | a | b |
+---@param v number | Vector | Matrix
+---@param a number | Vector | Matrix
+---@param b number | Vector | Matrix
+---@return number | Vector | Matrix
 local function clamp(v, a, b)
     return min(max(v, a), b)
 end
 
----@protected
----@return number
-local function velmod()
-    if not player:isLoaded() then return nil end
-    if player:getPose() == "STANDING" then
-        local velocityLength = (player:getVelocity().x_z*player:getLookDir()):length()*10
-        --log(velocityLength)
-        local scaledVel = math.log(velocityLength + 1)
-        return clamp(scaledVel - 0.21585, 0, 0.06486) / 0.06486 * 9 + 1
-    else
-        return 1000
-    end
-end
+-- ---@protected
+-- ---@return number
+-- local function velmod()
+--     if not player:isLoaded() then return nil end
+--     if player:getPose() == "STANDING" then
+--         local velocityLength = (player:getVelocity().x_z*player:getLookDir()):length()*10
+--         --log(velocityLength)
+--         local scaledVel = math.log(velocityLength + 1)
+--         return clamp(scaledVel - 0.21585, 0, 0.06486) / 0.06486 * 9 + 1
+--     else
+--         return 1000
+--     end
+-- end
 --#endregion
 
 --#region 'Just-Lean'
----@diagnostic disable
-function cratesAPI:enable()
+
+function just_lean:enable()
     self.enabled = true
     return self
 end
 
-function cratesAPI:disable(x)
+function just_lean:disable(x)
     self.enabled = false
     return self
 end
 
-function cratesAPI:toggle(x)
+function just_lean:toggle(x)
     if x == nil then
         self.enabled = not self.enabled
     elseif x ~= nil then
@@ -187,34 +171,14 @@ function cratesAPI:toggle(x)
     return self
 end
 
-function cratesAPI:add(...)
-    local vals = { ... }
-    --log(vals)
-    if #vals == 0 then
-        self.offset:reset()
-        return self
-    elseif type(vals[1]) == "Vector3" then
-        self.offset:add(vals[1])
-        return self
-    elseif (not type(vals[1]) == "Vector3") and type(vals[1]) == "number" then
-        local vx, vy, vz = table.unpack(vals)
-        --log(vx,vy,vz)
-        self.offset:add(vx,vy,vz)
-        return self
-    else
-        return self
-       -- error("Expected Vector3 or Numbers")
-    end
-end
-
-function cratesAPI:getRot()
+function just_lean:getRot()
     return self._rot
 end
----@diagnostic enable
+
 ---@class lean
 lean = {}
 lean.__index = lean
-setmetatable(lean, cratesAPI)
+setmetatable(lean, just_lean)
 lean.activeLeaning = {}
 ---@param modelpart ModelPart
 ---@param minLean Vector2 | table?
@@ -268,7 +232,7 @@ end
 ---@class head
 head = {}
 head.__index = head
-setmetatable(head, cratesAPI)
+setmetatable(head, just_lean)
 head.activeHead = {}
 ---@param self head
 ---@param modelpart ModelPart
@@ -317,7 +281,7 @@ end
 ---@class influence
 influence = {}
 influence.__index = influence
-setmetatable(influence, cratesAPI)
+setmetatable(influence, just_lean)
 influence.activeInfluences = {}
 ---@param self influence
 ---@param modelpart ModelPart
@@ -386,8 +350,8 @@ end
 local hed = head.activeHead
 local le = lean.activeLeaning
 local influ = influence.activeInfluences
-local headRot = cratesAPI.silly and ((((player:getRot()-vec(0,player:getBodyYaw()))+180)%360)-180).xy_ or (((vanilla_model.HEAD:getOriginRot()+180)%360)-180)
-function cratesAPI:avatar_init()
+local headRot = just_lean.silly and ((((player:getRot()-vec(0,player:getBodyYaw()))+180)%360)-180).xy_ or (((vanilla_model.HEAD:getOriginRot()+180)%360)-180)
+function just_lean:avatar_init()
     if self.exposeEasing then
         math.ease = ease
     else
@@ -406,9 +370,9 @@ function cratesAPI:avatar_init()
     end
 end
 
-function cratesAPI:tick()
+function just_lean:tick()
     if not self.enabled then return self end
-    headRot = cratesAPI.silly and ((((player:getRot()-vec(0,player:getBodyYaw()))+180)%360)-180).xy_ or (((vanilla_model.HEAD:getOriginRot()+180)%360)-180)
+    headRot = just_lean.silly and ((((player:getRot()-vec(0,player:getBodyYaw()))+180)%360)-180).xy_ or (((vanilla_model.HEAD:getOriginRot()+180)%360)-180)
     local vehicle = player:getVehicle()
     if #le < 1 then
         if self.debug then
@@ -434,12 +398,12 @@ function cratesAPI:tick()
     for id_h, v in pairs(hed) do
         v._rot:set(v.rot)
         if v.enabled then
-            v.selHead = v.modelpart or v.vanillaHead and vanilla_model.HEAD
+            v.selHead = v.modelpart ~= nil and v.modelpart or v.vanillaHead and vanilla_model.HEAD
             for id_l, y in pairs(le) do
                 if id_h == id_l then --insurance
                 local player_rot = headRot
-                local fpr = cratesAPI.silly and (-player_rot).xy_ or player_rot - vec(y.rot.x, y.rot.y, -y.rot.y / (v.tilt or 4))
-                local final = cratesAPI.silly and vehicle and (((vanilla_model.HEAD:getOriginRot()+180)%360)-180) - vec(y.rot.x, y.rot.y, -y.rot.y / (v.tilt or 4)) or fpr
+                local fpr = just_lean.silly and (-player_rot).xy_ or player_rot - vec(y.rot.x, y.rot.y, -y.rot.y / (v.tilt or 4))
+                local final = just_lean.silly and vehicle and (((vanilla_model.HEAD:getOriginRot()+180)%360)-180) - vec(y.rot.x, y.rot.y, -y.rot.y / (v.tilt or 4)) or fpr
                     v.rot:set(ease(v.rot,
                         (final*v.strength)+(vanilla_model.HEAD:getOffsetRot() or vec(0,0,0)), v.speed or 0.5,
                         v.interp or "inOutSine"))
@@ -451,16 +415,16 @@ function cratesAPI:tick()
     for _, k in pairs(le) do
         k._rot:set(k.rot)
         if k.enabled then
-            local mainrot = cratesAPI.silly and vehicle and (((vanilla_model.HEAD:getOriginRot()+180)%360)-180):toRad():scale(-1,1,1) or cratesAPI.silly and (((((player:getRot() - vec(0,player:getBodyYaw())).xy_)+180)%360)-180):toRad() or headRot:toRad()
+            local mainrot = just_lean.silly and vehicle and (((vanilla_model.HEAD:getOriginRot()+180)%360)-180):toRad():scale(-1,1,1) or just_lean.silly and (((((player:getRot() - vec(0,player:getBodyYaw())).xy_)+180)%360)-180):toRad() or headRot:toRad()
             local t = sin(((client.getSystemTime() / 1000) * 20) / 16.0)
             local breathe = vec(
                 t * 2.0,
                 abs(t) / 2.0,
                 (abs(cos(t)) / 16.0)
             )
-            local targetVel = velmod()
-            local lean_x = clamp(sin(cratesAPI.silly and -mainrot.x or mainrot.x / targetVel) * 45.5, k.minLean.x, k.maxLean.x)
-            local lean_y = clamp(sin(cratesAPI.silly and -mainrot.y or mainrot.y) * 45.5, k.minLean.y, k.maxLean.y)
+            local targetVel = (math.log((player:getVelocity().x_z:length()*20) + 1 - 0.21585) * 0.06486 * 9 + 1)
+            local lean_x = clamp(sin(just_lean.silly and -mainrot.x or mainrot.x / targetVel) * 45.5, k.minLean.x, k.maxLean.x)
+            local lean_y = clamp(sin(just_lean.silly and -mainrot.y or mainrot.y) * 45.5, k.minLean.y, k.maxLean.y)
             local rot = not player:isCrouching() and
             vec(lean_x, lean_y, lean_y * 0.075):add(k.offset) or vec(0, 0, 0)
             if k.breathing then
@@ -491,14 +455,14 @@ function cratesAPI:tick()
     end
 end
 
-cratesAPI.lean = lean
-setmetatable(cratesAPI.lean, cratesAPI)
-cratesAPI.head = head
-setmetatable(cratesAPI.head, cratesAPI)
-cratesAPI.influence = influence
-setmetatable(cratesAPI.influence, cratesAPI)
+just_lean.lean = lean
+setmetatable(just_lean.lean, just_lean)
+just_lean.head = head
+setmetatable(just_lean.head, just_lean)
+just_lean.influence = influence
+setmetatable(just_lean.influence, just_lean)
 
-function cratesAPI:render(delta)
+function just_lean:render(delta)
     if not self.enabled then return self end
     if delta == 1 then return end
     
@@ -529,19 +493,19 @@ function cratesAPI:render(delta)
     end
 end
 
-if cratesAPI.allowAutoUpdates then
+if just_lean.allowAutoUpdates then
     function events.entity_init()
-        cratesAPI:avatar_init()
+        just_lean:avatar_init()
     end
 
     function events.tick()
-        cratesAPI:tick()
+        just_lean:tick()
     end
 
     function events.render(d)
-        cratesAPI:render(d)
+        just_lean:render(d)
     end
 end
 --#endregion
 
-return cratesAPI
+return just_lean
