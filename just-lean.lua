@@ -277,6 +277,11 @@ function head.new(self, modelpart, speed, tilt, interp, strength, vanillaHead, e
 end
 
 
+---@alias influence.modes
+---| "LEG_LEFT"
+---| "LEG_RIGHT"
+---| "ARM_LEFT"
+---| "ARM_RIGHT"
 
 ---@class influence
 influence = {}
@@ -287,12 +292,12 @@ influence.activeInfluences = {}
 ---@param modelpart ModelPart
 ---@param speed number
 ---@param interp string
----@param factor number|table|Vector3?
+---@param mode influence.modes|string
+---@param strength table
 ---@param metatable table|nil
 ---@param enabled boolean
----@param usematrix boolean
 ---@return influence
-function influence.new(self, modelpart, speed, interp, factor, metatable, enabled, usematrix)
+function influence.new(self, modelpart, speed, interp, mode, strength, metatable, enabled)
     local self = setmetatable({}, influence)
     self.modelpart = modelpart
     self.speed = speed
@@ -301,48 +306,35 @@ function influence.new(self, modelpart, speed, interp, factor, metatable, enable
     self.__metatable = metatable or false
     self.rot = self.__metatable and (-self.__metatable.modelpart:getOffsetRot()) or vec(0,0,0)
     self._rot = self.rot
-    self.usematrix = usematrix
-    if type(factor) == "table" then
-        local x,y,z = table.unpack(factor)
-        self.factor = vec(x or 1,y or 1,z or 1)
-        if #factor > 3 then
-            error("Maximum Length of 3 Expected",4)
-        elseif #factor == 0 then
-            error("No Values given")
+    self.frot = vectors.vec3()
+    self.pos = vectors.vec3()
+    self._pos = self.pos
+    self.mode = mode or "LEGS"
+    self.strength = strength or {1,1,1}
+    self.tick = function(self)
+        self._rot = self.rot
+        self._pos = self.pos
+        local rot = (((vanilla_model.HEAD:getOriginRot()+180)%360)-180)
+        if self.mode == "LEG_LEFT" then
+            self.rot = ease(self.rot, vec((rot.y/14)*(self.strength[1] or self.strength.x),(0),player:isCrouching() and -(rot.y*(self.strength.z or self.strength[3])) or 0), self.speed or 0.5, self.interp or "linear")
+            self.pos = ease(self.pos, vec(player:isCrouching() and ((rot.y*(self.strength.z or self.strength[3]))/4) or 0,0,player:isCrouching() and (rot.y/60) or (rot.y/40)), self.speed or 0.5, self.interp or "linear")
+        elseif self.mode == "LEG_RIGHT" then
+            self.rot = ease(self.rot, vec(-(rot.y/14)*(self.strength[1] or self.strength.x),(0), player:isCrouching() and -(rot.y*(self.strength.z or self.strength[3])) or 0), self.speed or 0.5, self.interp or "linear")
+            self.pos = ease(self.pos, vec(player:isCrouching() and ((rot.y*(self.strength.z or self.strength[3]))/4) or 0,0,player:isCrouching() and -(rot.y/60) or -(rot.y/40)), self.speed or 0.5, self.interp or "linear")
+        elseif self.mode == "ARM_LEFT" then
+            --TODO
+        elseif self.mode == "ARM_RIGHT" then
+            --TODO
         end
-    elseif type(factor) == "Vector3" then
-        self.factor = factor
-    elseif type(factor) == "number" then
-        self.factor = vec(factor, factor, factor)
-    else
-        self.factor = 1
     end
-
+    self.render = function(self, delta)
+        self.frot = lerp(self._rot, self.rot, delta)
+        self.modelpart:setRot(self.frot)
+    end
     table.insert(influence.activeInfluences, self)
     return self
 end
 
----@param mat Matrix4|Matrix3
----@return Vector3
-function influence:mat2eulerZYX(mat)
-    ---@type number, number, number
-    local x, y, z
-    local query = mat.v31 -- are we in Gimbal Lock?
-    if abs(query) < 0.9999 then
-        y = asin(-mat.v31)
-        z = atan2(mat.v21, mat.v11)
-        x = atan2(mat.v32, mat.v33)
-    elseif query < 0 then -- approx -1, gimbal lock
-        y = pi / 2
-        z = -atan2(-mat.v23, mat.v22)
-        x = 0
-    else -- approx 1, gimbal lock
-        y = -pi / 2
-        z = atan2(-mat.v23, mat.v22)
-        x = 0
-    end
-    return vec(x, y, z):toDeg()
-end
 
 --#endregion
 
@@ -426,7 +418,7 @@ function just_lean:tick()
             local lean_x = clamp(sin(just_lean.silly and -mainrot.x or mainrot.x / targetVel) * 45.5, k.minLean.x, k.maxLean.x)
             local lean_y = clamp(sin(just_lean.silly and -mainrot.y or mainrot.y) * 45.5, k.minLean.y, k.maxLean.y)
             local rot = not player:isCrouching() and
-            vec(lean_x, lean_y, lean_y * 0.075):add(k.offset) or vec(0, 0, 0)
+            vec(lean_x, lean_y, lean_y * 0.075):add(k.offset) or vec(lean_x*0.2, lean_y*0.5, lean_y * 0.25):add(k.offset)
             if k.breathing then
                 k.rot:set(ease(k.rot, rot + breathe + (vanilla_model.HEAD:getOffsetRot() or vec(0,0,0)), k.speed or 0.3, k.interp or "linear"))
             else
@@ -436,21 +428,7 @@ function just_lean:tick()
     end
     for _, l in pairs(influ) do
         if l.enabled then
-            for _, k in pairs(le) do
-                if not l.__metatable then
-                    l.__metatable = k
-                end
-            end
-            l._rot:set(l.rot)
-            if l.usematrix and l.__metatable then
-                -- Use the matrix conversion if enabled
-                local modelMatrix = l.__metatable.modelpart:getPositionMatrix()
-                local eulerAngles = l:mat2eulerZYX(modelMatrix)
-                l.rot = ease(l.rot, -eulerAngles * (l.factor or 1), l.speed, l.interp or "linear")
-            else
-                -- Use the existing method
-                l.rot = ease(l.rot, l.__metatable and -l.__metatable.rot * (l.factor or 1), l.speed, l.interp or "linear")
-            end
+            l:tick()
         end
     end
 end
@@ -487,8 +465,7 @@ function just_lean:render(delta)
 
     for _, l in pairs(influ) do
         if l.enabled then
-            local fRot = ease(l._rot, l.rot, delta, "linear")
-            l.modelpart:setOffsetRot(fRot)
+            l:render(delta)
         end
     end
 end
