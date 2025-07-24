@@ -304,7 +304,7 @@ function influence.new(self, modelpart, speed, interp, mode, strength, metatable
     self.interp = interp
     self.enabled = enabled
     self.__metatable = metatable or false
-    self.rot = self.__metatable and (-self.__metatable.modelpart:getOffsetRot()) or vec(0,0,0)
+    self.rot = self.__metatable and self.__metatable.modelpart and (-self.__metatable.modelpart:getOffsetRot()) or vec(0,0,0)
     self._rot = self.rot
     self.frot = vectors.vec3()
     self.pos = vectors.vec3()
