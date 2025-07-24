@@ -30,4 +30,11 @@ true --enabled
 )
 
 --you know the drill
-local right = jl.influence:new(models.model.root.RightLeg, 0.5, "linear", "LEG_RIGHT",{1,0.5,0.1}, torso, true)
+local right = jl.influence:new(
+models.model.root.RightLeg, 
+0.5, 
+"linear", 
+"LEG_RIGHT",
+{1,0.5,0.1}, 
+torso, 
+true)
