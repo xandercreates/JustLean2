@@ -12,8 +12,8 @@ local torso = jl.lean:new(
 )
 local head = jl.head:new(       --optional
     models.model.root.Torso.Head, --ModelPart, change this accordingly
-    0.6,                          --speed
-    1,                            --Tilt. the lower the less
+    0.75,                          --speed
+    0.3,                            --Tilt. the lower the less
     "linear",                 --interpolation method. Takes string, Valid vals: "linear", "inOutSine", "inOutCubic"
     {1,1},
     true,                         --Rotate Vanilla Head Instead (Will rotate modelpart if it follows vanilla head)
