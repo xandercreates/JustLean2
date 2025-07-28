@@ -9,6 +9,7 @@ Rewrite Structure Heavily Inspired by Squishy's API
 local sin, cos, abs, asin, atan, atan2, min, max, map, lerp = math.sin, math.cos, math.abs, math.asin, math.atan, math.atan2, math.min, math.max, math.map, math.lerp
 --#endregion
 
+
 --#region 'just_lean Initialization'
 ---@class just_lean
 local just_lean = {}
@@ -73,55 +74,9 @@ end
 
 --#endregion
 --#region 'Math Extras'
----@class Easings
-local easings = {}
+local easings = require("scripts.ease")
+easings.exposeEase = true
 
----@private
----@param a number | Vector | Matrix
----@param b number | Vector | Matrix
----@param t number
----@return number | Vector | Matrix
-function easings.inOutSine(a, b, t)
-    return map(-(math.cos(math.pi * t) - 1) / 2, 0, 1, a, b)
-end
-
----@private
----@param a number | Vector | Matrix
----@param b number | Vector | Matrix
----@param t number
----@return number | Vector | Matrix
-function easings.inOutCubic(a, b, t)
-    local v = t < 0.5 and 4 * t ^ 3 or 1 - (-2 * t + 2) ^ 3 / 2
-    return map(v, 0, 1, a, b)
-end
-
----@private
----@param a number | Vector | Matrix
----@param b number | Vector | Matrix
----@param t number
----@return number | Vector | Matrix
-function easings.linear(a,b,t)
-    return lerp(a,b,t)
-end
-
----@private
----@param a number | Vector | Matrix
----@param b number | Vector | Matrix
----@param t number
----@return number | Vector | Matrix
-function easings.inOutQuadratic(a,b,t)
-    local v = t < 0.5 and 2 * t * t or 1 - (-2 * t + 2) ^ 2 / 2
-    return map(v, 0, 1, a, b)
-end
-
----@private
----@param a number | Vector | Matrix
----@param b number | Vector | Matrix
----@param t number
----@return number | Vector | Matrix
-local function ease(a, b, t, s)
-    return easings[s](a, b, t) --[[@as number | Vector| Matrix]]
-end
 
 ---@private
 ---@param v number | Vector | Matrix
@@ -260,7 +215,7 @@ function head.new(self, modelpart, speed, tilt, interp, strength, vanillaHead, e
         self.strength = strength
     end
     self.tilt = (1 / (tilt or 4)) * (self.strength.y or self.strength[2] or 1)
-    self.interp = interp or "inOutSine"
+    self.interp = interp or "linear"
 
     function self:disable(x)
         if not x then
@@ -298,38 +253,46 @@ influence.activeInfluences = {}
 ---@param enabled boolean
 ---@return influence
 function influence.new(self, modelpart, speed, interp, mode, strength, metatable, enabled)
-    local self = setmetatable({}, influence)
+    local self = setmetatable({}, influence) --[[@as table]]
     self.modelpart = modelpart
     self.speed = speed
     self.interp = interp
     self.enabled = enabled
     self.__metatable = metatable or false
-    self.rot = self.__metatable and self.__metatable.modelpart and (-self.__metatable.modelpart:getOffsetRot()) or vec(0,0,0)
+    self.rot = vectors.vec3()
     self._rot = self.rot
-    self.frot = vectors.vec3()
     self.pos = vectors.vec3()
     self._pos = self.pos
+    self.frot = vectors.vec3()
+    self.fpos = vectors.vec3()
     self.mode = mode or "LEGS"
-    self.strength = strength or {1,1,1}
+    self.strength = vec(strength[1] or strength.x, strength[2] or strength.y, strength[3] or strength.z)
+
     self.tick = function(self)
         self._rot = self.rot
         self._pos = self.pos
-        local rot = (((vanilla_model.HEAD:getOriginRot()+180)%360)-180)
+        local pose = player:getPose()
+        local rot = self.__metatable and self.__metatable.modelpart and self.__metatable.modelpart:getTrueRot() - (self.__metatable.modelpart:getAnimRot() and self.__metatable.modelpart:getAnimRot() or vec(0,0,0)) or (((vanilla_model.HEAD:getOriginRot()+180)%360)-180)
         if self.mode == "LEG_LEFT" then
-            self.rot = ease(self.rot, vec((rot.y/14)*(self.strength[1] or self.strength.x),(0),player:isCrouching() and -(rot.y*(self.strength.z or self.strength[3])) or 0), self.speed or 0.5, self.interp or "linear")
-            self.pos = ease(self.pos, vec(player:isCrouching() and ((rot.y*(self.strength.z or self.strength[3]))/4) or 0,0,player:isCrouching() and (rot.y/60) or (rot.y/40)), self.speed or 0.5, self.interp or "linear")
+            self.rot = easings:ease(self.rot, vec((rot.y/14)*(self.strength[1] or self.strength.x),(0),pose ~= "STANDING" and -(rot.y*(self.strength.z or self.strength[3])) or 0), self.speed or 0.5, self.interp or "linear")
+            self.pos = easings:ease(self.pos, vec(pose ~= "STANDING" and ((rot.y*(self.strength.z or self.strength[3]))/4) or 0,0,pose ~= "STANDING" and (rot.y/60) or (rot.y/40)), self.speed or 0.5, self.interp or "linear")
         elseif self.mode == "LEG_RIGHT" then
-            self.rot = ease(self.rot, vec(-(rot.y/14)*(self.strength[1] or self.strength.x),(0), player:isCrouching() and -(rot.y*(self.strength.z or self.strength[3])) or 0), self.speed or 0.5, self.interp or "linear")
-            self.pos = ease(self.pos, vec(player:isCrouching() and ((rot.y*(self.strength.z or self.strength[3]))/4) or 0,0,player:isCrouching() and -(rot.y/60) or -(rot.y/40)), self.speed or 0.5, self.interp or "linear")
+            self.rot = easings:ease(self.rot, vec(-(rot.y/14)*(self.strength[1] or self.strength.x),(0), pose ~= "STANDING" and -(rot.y*(self.strength.z or self.strength[3])) or 0), self.speed or 0.5, self.interp or "linear")
+            self.pos = easings:ease(self.pos, vec(pose ~= "STANDING" and ((rot.y*(self.strength.z or self.strength[3]))/4) or 0,0,pose ~= "STANDING" and -(rot.y/60) or -(rot.y/40)), self.speed or 0.5, self.interp or "linear")
         elseif self.mode == "ARM_LEFT" then
-            --TODO
+            self.strength = player:getActiveItem().id ~= "minecraft:air" and vec(strength[1] > 0 and -strength[1] or -1,strength[2] > 0 and -strength[2] or -1, strength[3] > 0 and -strength[3] or 0) or vec(strength[1] or strength.x, strength[2] or strength.y, strength[3] or strength.z)
+            self.rot = easings:ease(self.rot, rot * self.strength, self.speed or 0.5, self.interp or "linear")
         elseif self.mode == "ARM_RIGHT" then
-            --TODO
+            self.strength = player:getActiveItem().id ~= "minecraft:air" and vec(strength[1] > 0 and -strength[1] or -1,strength[2] > 0 and -strength[2] or -1, strength[3] > 0 and -strength[3] or 0) or vec(strength[1] or strength.x, strength[2] or strength.y, strength[3] or strength.z)
+            self.rot = easings:ease(self.rot, rot * self.strength, self.speed or 0.5, self.interp or "linear")
         end
     end
+
     self.render = function(self, delta)
         self.frot = lerp(self._rot, self.rot, delta)
+        self.fpos = lerp(self._pos, self.pos, delta)
         self.modelpart:setRot(self.frot)
+        self.modelpart:setPos(self.fpos)
     end
     table.insert(influence.activeInfluences, self)
     return self
@@ -344,11 +307,6 @@ local le = lean.activeLeaning
 local influ = influence.activeInfluences
 local headRot = just_lean.silly and ((((player:getRot()-vec(0,player:getBodyYaw()))+180)%360)-180).xy_ or (((vanilla_model.HEAD:getOriginRot()+180)%360)-180)
 function just_lean:avatar_init()
-    if self.exposeEasing then
-        math.ease = ease
-    else
-        math.ease = nil
-    end
     if not self.enabled then return self end
 
     for _, v in pairs(hed) do
@@ -396,9 +354,9 @@ function just_lean:tick()
                 local player_rot = headRot
                 local fpr = just_lean.silly and (-player_rot).xy_ or player_rot - vec(y.rot.x, y.rot.y, -y.rot.y / (v.tilt or 4))
                 local final = just_lean.silly and vehicle and (((vanilla_model.HEAD:getOriginRot()+180)%360)-180) - vec(y.rot.x, y.rot.y, -y.rot.y / (v.tilt or 4)) or fpr
-                    v.rot:set(ease(v.rot,
+                    v.rot:set(easings:ease(v.rot,
                         (final*v.strength)+(vanilla_model.HEAD:getOffsetRot() or vec(0,0,0)), v.speed or 0.5,
-                        v.interp or "inOutSine"))
+                        v.interp or "linear"))
                 end
             end
         end
@@ -420,9 +378,9 @@ function just_lean:tick()
             local rot = not player:isCrouching() and
             vec(lean_x, lean_y, lean_y * 0.075):add(k.offset) or vec(lean_x*0.2, lean_y*0.5, lean_y * 0.25):add(k.offset)
             if k.breathing then
-                k.rot:set(ease(k.rot, rot + breathe + (vanilla_model.HEAD:getOffsetRot() or vec(0,0,0)), k.speed or 0.3, k.interp or "linear"))
+                k.rot:set(easings:ease(k.rot, rot + breathe + (vanilla_model.HEAD:getOffsetRot() or vec(0,0,0)), k.speed or 0.3, k.interp or "linear"))
             else
-                k.rot:set(ease(k.rot, rot + (vanilla_model.HEAD:getOffsetRot() or vec(0,0,0)), k.speed or 0.3, k.interp or "linear"))
+                k.rot:set(easings:ease(k.rot, rot + (vanilla_model.HEAD:getOffsetRot() or vec(0,0,0)), k.speed or 0.3, k.interp or "linear"))
             end
         end
     end
@@ -449,7 +407,7 @@ function just_lean:render(delta)
             if type(v.selHead) ~= "VanillaModelPart" then
                 vanilla_model.HEAD:setRot(0,0,0)
             end
-            local fRot = ease(v._rot, v.rot, delta, "linear")
+            local fRot = easings:ease(v._rot, v.rot, delta, "linear")
             v.selHead:setRot(fRot)
         else
             vanilla_model.HEAD:setRot()
@@ -458,7 +416,7 @@ function just_lean:render(delta)
 
     for _, k in pairs(le) do
         if k.enabled then
-            local fRot = ease(k._rot, k.rot, delta, "linear")
+            local fRot = easings:ease(k._rot, k.rot, delta, "linear")
             k.modelpart:setOffsetRot(fRot)
         end
     end
