@@ -29,7 +29,6 @@ just_lean.__index = just_lean
 just_lean.allowAutoUpdates = true
 just_lean.enabled = true
 just_lean.debug = false
-just_lean.silly = false
 just_lean.useEase = true
 --#endregion
 
