@@ -387,7 +387,7 @@ function just_lean:tick()
                 abs(t) / 2.0,
                 (abs(cos(t)) / 16.0)
             )
-            local targetVel = (math.log((player:getVelocity().x_z:length()*20) + 1 - 0.21585) * 0.06486 * 9 + 1)
+            local targetVel = (math.log((player:getVelocity().x_z:length()*20) + 1 - 0.21585) * 0.06486 * 19 + 1)
             local lean_x = clamp(sin(mainrot.x / targetVel) * 45.5, k.minLean.x, k.maxLean.x) --[[@as number]]
             local lean_y = clamp(sin(mainrot.y) * 45.5, k.minLean.y, k.maxLean.y) --[[@as number]]
             local rot = not player:isCrouching() and
