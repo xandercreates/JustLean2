@@ -281,7 +281,7 @@ function influence.new(self, modelpart, speed, interp, mode, strength, metatable
     self.frot = vectors.vec3()
     self.fpos = vectors.vec3()
     self.mode = mode or "LEGS"
-    self.strength = vectors.vec3()
+    self.strength = vec(strength[1] or strength.x, strength[2] or strength.y, strength[3] or strength.z)
 
     self.tick = function(self)
         self._rot = self.rot
