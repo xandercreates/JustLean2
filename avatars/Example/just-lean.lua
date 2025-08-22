@@ -299,7 +299,7 @@ function influence.new(self, modelpart, speed, interp, mode, strength, metatable
         local _strength = vec(strength[1] or strength.x, strength[2] or strength.y, strength[3] or strength.z)
         if self.mode == "ARM_LEFT" or self.mode == "ARM_RIGHT" then
             if isHoldingItem then
-                self.strength = vec(-_strength[1], -_strength[2], _strength[3] > 0 and -_strength[3] or 0)
+                self.strength = vec(_strength.x > 0 and -_strength.x or -1, _strength.y > 0 and -_strength.y or -1, _strength.z > 0 and -_strength.z or -1)
             else
                 self.strength = _strength
             end
