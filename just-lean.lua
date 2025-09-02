@@ -3,8 +3,16 @@ Rewrite Structure Heavily Inspired by Squishy's API
 ]]
 
 
+--[[ Credits
+    CommanderShiji (@the_command) - Influence Math
+]]--
+
+
 ---@diagnostic disable: duplicate-set-field
 ---@diagnostic disable: redefined-local
+---@diagnostic disable: undefined-field
+---@diagnostic disable: undefined-doc-name
+---@diagnostic disable: undefined-global
 
 --This Alias grabs from ease's aliases. If ease is installed and you have VSCode + GS' VSCodeDocs it should show up on your main script
 ---@alias jl.validInterps: string
@@ -27,6 +35,7 @@ just_lean.allowAutoUpdates = true
 just_lean.enabled = true
 just_lean.debug = false
 just_lean.useEase = true
+just_lean.baseRot = vanilla_model.HEAD:getOriginRot()
 --#endregion
 
 --#region 'Math Setup'
@@ -120,46 +129,15 @@ end
 --#endregion
 
 --#region 'Just-Lean'
-
-function just_lean:enable()
-    self.enabled = true
-    return self
-end
-
-function just_lean:disable(x)
-    self.enabled = false
-    return self
-end
-
-function just_lean:toggle(x)
-    if x == nil then
-        self.enabled = not self.enabled
-    elseif x ~= nil then
-        self.enabled = x
-    end
-    if self.enabled == false then
-        self:disable(x)
-    end
-    return self
-end
-
-function just_lean:getRot()
-    return self._rot
-end
-
 ---@class lean
 lean = {}
 lean.__index = lean
 setmetatable(lean, just_lean)
 lean.activeLeaning = {}
----@param modelpart ModelPart
----@param minLean Vector2 | table?
----@param maxLean Vector2 | table?
----@param speed number
----@param interp jl.validInterps
----@param breathing boolean
----@param enabled boolean
----@return lean
+---@overload fun(self?: self, modelpart: ModelPart, minLean: Vector2, maxLean: Vector2, speed: number, interp: jl.validInterps|string, breathing: boolean, enabled: boolean): self
+---@overload fun(self?: self, modelpart: ModelPart, minLean: table, maxLean: table, speed: number, interp: jl.validInterps|string, breathing: boolean, enabled: boolean): self
+---@overload fun(self?: self, modelpart: ModelPart, minLean: Vector2, maxLean: table, speed: number, interp: jl.validInterps|string, breathing: boolean, enabled: boolean): self
+---@overload fun(self?: self, modelpart: ModelPart, minLean: table, maxLean: Vector2, speed: number, interp: jl.validInterps|string, breathing: boolean, enabled: boolean): self
 function lean.new(self, modelpart, minLean, maxLean, speed, interp, breathing, enabled)
     local self = setmetatable({}, lean) --[[@as table]]
     self.modelpart = modelpart
@@ -196,6 +174,41 @@ function lean.new(self, modelpart, minLean, maxLean, speed, interp, breathing, e
         return self
     end
 
+    function self:enable()
+        self.enabled = true
+        return self
+    end
+
+    function self:toggle()
+        self.enabled = not self.enabled
+    end
+
+    self.tick = function(self)
+        self._rot:set(self.rot)
+        local rot = just_lean.baseRot:toRad()
+        local t = sin(((client.getSystemTime() / 1000) * 20) / 16.0)
+        local breathe = vec(
+            t * 2.0,
+            abs(t) / 2.0,
+            (abs(cos(t)) / 16.0)
+        )
+        local targetVel = (math.log((player:getVelocity().x_z:length()*20) + 1 - 0.21585) * 0.06486 * 19 + 1)
+        local lean_x = clamp(sin(rot.x / targetVel) * 45.5, self.minLean.x, self.maxLean.x) --[[@as number]]
+        local lean_y = clamp(sin(rot.y) * 45.5, self.minLean.y, self.maxLean.y) --[[@as number]]
+        local targetrot = not player:isCrouching() and
+        vec(lean_x, lean_y, lean_y * 0.075):add((vanilla_model.HEAD:getOffsetRot() or vec(0,0,0))) or vec(lean_x*0.2, lean_y*0.5, lean_y * 0.25):add((vanilla_model.HEAD:getOffsetRot() or vec(0,0,0))) 
+        if self.breathing then
+            self.rot:set(tweenFn(self.rot, targetrot + breathe, self.speed or 0.3, self.interp or "linear"))
+        else
+            self.rot:set(tweenFn(self.rot, targetrot, self.speed or 0.3, self.interp or "linear"))
+        end
+    end
+
+    self.render = function(self, delta)
+        local fRot = lerp(self._rot, self.rot, delta)
+        self.modelpart:setOffsetRot(fRot)
+    end
+
     table.insert(lean.activeLeaning, self)
     return self
 end
@@ -212,16 +225,20 @@ head.activeHead = {}
 ---@param interp jl.validInterps
 ---@param strength table|Vector2|number?
 ---@param vanillaHead boolean
+---@param metatable table
 ---@param enabled boolean
 ---@return head
-function head.new(self, modelpart, speed, tilt, interp, strength, vanillaHead, enabled)
+function head.new(self, modelpart, speed, tilt, interp, strength, vanillaHead, metatable, enabled)
     local self = setmetatable({}, head) --[[@as table]]
     self.modelpart = modelpart
     self.enabled = enabled or true
     self.speed = speed or 0.3625
     self.vanillaHead = vanillaHead or false
-    self._rot = vec(0, 0, 0)
-    self.rot = vec(0, 0, 0)
+    self.rot = vectors.vec3()
+    self._rot = vectors.vec3()
+    self.frot = vectors.vec3()
+    self.__metatable = metatable or false
+    self.id = #head.activeHead+1
     if type(strength) == "table" then
         self.strength = vec(strength.x or strength[1], strength.y or strength[2], 1)
     elseif type(strength) == "number" then
@@ -231,7 +248,9 @@ function head.new(self, modelpart, speed, tilt, interp, strength, vanillaHead, e
     end
     self.tilt = (1 / (tilt or 4)) * (self.strength.y or self.strength[2] or 1)
     self.interp = interp or "linear"
-
+    if not self.vanillaHead then
+        vanilla_model.HEAD:setRot(0,0,0)
+    end
     function self:disable(x)
         if not x then
             self.rot = vec(0, 0, 0)
@@ -242,14 +261,35 @@ function head.new(self, modelpart, speed, tilt, interp, strength, vanillaHead, e
         return self
     end
 
+    self.tick = function(self)
+        if not self.enabled then return end
+        local this = self.__metatable
+        local headRot = just_lean.baseRot
+        local final = headRot - vec(this._rot.x, this._rot.y, -this._rot.y / (self.tilt or 4))
+        local targetRot = (final+(vanilla_model.HEAD:getOffsetRot() or vec(0,0,0))) * self.strength
+        self._rot:set(self.rot)
+            self.rot:set(
+                tweenFn(self.rot,
+                targetRot, self.speed or 0.5,
+                self.interp or "linear")
+            )
+    end
+
+    self.render = function(self, delta)
+        self.frot = lerp(self._rot, self.rot, delta)
+        self.modelpart:setRot(self.frot)
+    end
     table.insert(head.activeHead, self)
     return self
 end
 
+---If this comment is still here that means you havent pushed an update.
 
 ---@alias influence.modes
 ---| "LEG_LEFT"
+---| "LEG_LEFT_LOWER"
 ---| "LEG_RIGHT"
+---| "LEG_RIGHT_LOWER"
 ---| "ARM_LEFT"
 ---| "ARM_RIGHT"
 
@@ -259,15 +299,16 @@ influence.__index = influence
 setmetatable(influence, just_lean)
 influence.activeInfluences = {}
 ---@param self influence
----@param modelpart ModelPart
+---@param modelpart ModelPart --Required.
 ---@param speed number
 ---@param interp jl.validInterps|string
 ---@param mode influence.modes|string
----@param strength table
+---@param strength table --Can also take a Vector3
 ---@param metatable table|nil
 ---@param enabled boolean
+---@param constraints table|nil --Two Vector3s must be inside: {vec(x,y,z), vec(x,y,z)}, for now Exclusively used for the _LOWER modes
 ---@return influence
-function influence.new(self, modelpart, speed, interp, mode, strength, metatable, enabled)
+function influence.new(self, modelpart, speed, interp, mode, strength, metatable, enabled, constraints)
     local self = setmetatable({}, influence) --[[@as table]]
     self.modelpart = modelpart
     self.speed = speed
@@ -282,6 +323,7 @@ function influence.new(self, modelpart, speed, interp, mode, strength, metatable
     self.fpos = vectors.vec3()
     self.mode = mode or "LEGS"
     self.strength = vec(strength[1] or strength.x, strength[2] or strength.y, strength[3] or strength.z)
+    self.constraints = constraints or {vec(-360,-360,-360), vec(360,360,360)}
 
     self.tick = function(self)
         self._rot = self.rot
@@ -290,9 +332,9 @@ function influence.new(self, modelpart, speed, interp, mode, strength, metatable
         local rot
         if self.__metatable and self.__metatable.modelpart then
         local animRot = self.__metatable.modelpart:getAnimRot() or vec(0,0,0)
-            rot = self.__metatable.modelpart:getTrueRot() - animRot
+            rot = self.__metatable.rot - animRot
         else
-            rot = (((vanilla_model.HEAD:getOriginRot()+180)%360)-180)
+            rot = just_lean.baseRot
         end
         local targetRot, targetPos = vectors.vec3(), vectors.vec3()
         local isHoldingItem = player:getActiveItem().id ~= "minecraft:air"
@@ -305,15 +347,31 @@ function influence.new(self, modelpart, speed, interp, mode, strength, metatable
             end
         end
         if self.mode == "LEG_LEFT" then
-            targetRot = vec((rot.y/14) * self.strength.x, 0, (pose ~= "STANDING" and -(rot.y * self.strength.z) or 0))
-            targetPos = vec((pose ~= "STANDING" and ((rot.y * self.strength.z) / 4) or 0), 0, (pose ~= "STANDING" and (rot.y / 60) or (rot.y / 40)))
+            targetRot = vec((((-rot.x*0.5)+(rot.y))/14) * self.strength.x, ((rot.y/2)*self.strength.y), (pose ~= "STANDING" and -(rot.y * self.strength.z) or 0))
+            targetPos = vec((pose ~= "STANDING" and ((rot.y * self.strength.z) / 4) or 0), 0, (pose ~= "STANDING" and ((-rot.x + rot.y) / 60) or ((-(rot.x*1) + (rot.y*2)) / 40)))
         elseif self.mode == "LEG_RIGHT" then
-            targetRot = vec(-(rot.y/14) * self.strength.x, 0, (pose ~= "STANDING" and -(rot.y * self.strength.z) or 0))
-            targetPos = vec((pose ~= "STANDING" and ((rot.y * self.strength.z) / 4) or 0), 0, (pose ~= "STANDING" and -(rot.y / 60) or -(rot.y / 40)))
+            targetRot = vec(-(((rot.x*0.5)+(rot.y))/14) * self.strength.x, -((rot.y/2)*self.strength.y), (pose ~= "STANDING" and -(rot.y * self.strength.z) or 0))
+            targetPos = vec((pose ~= "STANDING" and ((rot.y * self.strength.z) / 4) or 0), 0, (pose ~= "STANDING" and -((rot.x + rot.y) / 60) or -(((rot.x*1) + (rot.y*2)) / 40)))
         elseif self.mode == "ARM_LEFT" then
             targetRot = rot * self.strength
         elseif self.mode == "ARM_RIGHT" then
             targetRot = rot * self.strength
+        elseif self.mode == "LEG_LEFT_LOWER" then
+            assert(#self.constraints > 1, "Expected 2 Values/Table Length of 2, got "..#self.constraints)
+            --targetPos
+            local sel_limit
+            targetRot = vec(
+                clamp((rot.y/40 + rot.x) * self.strength.x, self.constraints[1] and self.constraints[1].x, self.constraints[2] and self.constraints[2].x),
+                0,
+                0
+            )
+        elseif self.mode == "LEG_RIGHT_LOWER" then
+            assert(#self.constraints > 1, "Expected 2 Values/Table Length of 2, got "..#self.constraints)
+            targetRot = vec(
+                clamp((-rot.y/40 + rot.x) * self.strength.x, self.constraints[1] and self.constraints[1].x, self.constraints[2] and self.constraints[2].x),
+                0,
+                0
+            )
         end
         self.rot = tweenFn(self.rot, targetRot, self.speed or 0.5, self.interp or "linear")
         self.pos = tweenFn(self.pos, targetPos, self.speed or 0.5, self.interp or "linear")
@@ -322,98 +380,36 @@ function influence.new(self, modelpart, speed, interp, mode, strength, metatable
     self.render = function(self, delta)
         self.frot = lerp(self._rot, self.rot, delta)
         self.fpos = lerp(self._pos, self.pos, delta)
-        self.modelpart:setRot(self.frot)
+        self.modelpart:setOffsetRot(self.frot)
         self.modelpart:setPos(self.fpos)
     end
     table.insert(influence.activeInfluences, self)
     return self
 end
-
-
 --#endregion
 
 --#region 'Update'
 local hed = head.activeHead
 local le = lean.activeLeaning
 local influ = influence.activeInfluences
-local headRot = (((vanilla_model.HEAD:getOriginRot()+180)%360)-180)
-function just_lean:avatar_init()
-    if not self.enabled then return self end
-
-    for _, v in pairs(hed) do
-        v.rot:set(headRot)
-        v._rot:set(v.rot)
-    end
-
-    for _, k in pairs(le) do
-        k.rot:set(vec(0, 0, 0):add(k.offset))
-        k._rot:set(k.rot)
-    end
-end
-
 function just_lean:tick()
     if not self.enabled then return self end
-    headRot = (((vanilla_model.HEAD:getOriginRot()+180)%360)-180)
+    self.baseRot = (((vanilla_model.HEAD:getOriginRot()+180)%360)-180)
     if #le < 1 then
         if self.debug then
             warn("No Parts Specified", 4)
         end
         return false
     end
-    if #hed < 1 then
-        if self.debug then
-            warn("Head not added/found. Creating Fallback; Will not work if you aren't using a keyworded Head part (Which follows the vanilla head!)", 4)
-        end
-        hed[1] = {
-            modelpart = vanilla_model.HEAD,
-            rotScale = 1,
-            vanillaHead = true,
-            speed = false,
-            _rot = vec(0,0,0),
-            rot = vec(0,0,0),
-            strength = vec(1,1,1),
-            enabled = true
-        }
-    end
     for id_h, v in pairs(hed) do
-        v._rot:set(v.rot)
         if v.enabled then
-            v.selHead = v.modelpart ~= nil and v.modelpart or v.vanillaHead and vanilla_model.HEAD
-            for id_l, y in pairs(le) do
-                if id_h == id_l then --insurance
-                local final = headRot - vec(y.rot.x, y.rot.y, -y.rot.y / (v.tilt or 4))
-                    v.rot:set(
-                        just_lean.useEase and easings:ease(v.rot,
-                        (final*v.strength)+(vanilla_model.HEAD:getOffsetRot() or vec(0,0,0)), v.speed or 0.5,
-                        v.interp or "linear") or lerp(v.rot,
-                        (final*v.strength)+(vanilla_model.HEAD:getOffsetRot() or vec(0,0,0)), v.speed or 0.5)
-                    )
-                end
-            end
+            v:tick()
         end
     end
-
+    
     for _, k in pairs(le) do
-        k._rot:set(k.rot)
         if k.enabled then
-            local mainrot = headRot:toRad()
-            local t = sin(((client.getSystemTime() / 1000) * 20) / 16.0)
-            local breathe = vec(
-                t * 2.0,
-                abs(t) / 2.0,
-                (abs(cos(t)) / 16.0)
-            )
-            local targetVel = (math.log((player:getVelocity().x_z:length()*20) + 1 - 0.21585) * 0.06486 * 19 + 1)
-            --log(targetVel)
-            local lean_x = clamp(sin(mainrot.x / targetVel) * 45.5, k.minLean.x, k.maxLean.x) --[[@as number]]
-            local lean_y = clamp(sin(mainrot.y) * 45.5, k.minLean.y, k.maxLean.y) --[[@as number]]
-            local rot = not player:isCrouching() and
-            vec(lean_x, lean_y, lean_y * 0.075):add(k.offset) or vec(lean_x*0.2, lean_y*0.5, lean_y * 0.25):add(k.offset)
-            if k.breathing then
-                k.rot:set(just_lean.useEase and easings:ease(k.rot, rot + breathe + (vanilla_model.HEAD:getOffsetRot() or vec(0,0,0)), k.speed or 0.3, k.interp or "linear") or lerp(k.rot, rot + breathe + (vanilla_model.HEAD:getOffsetRot() or vec(0,0,0)), k.speed or 0.3)) 
-            else
-                k.rot:set(just_lean.useEase and easings:ease(k.rot, rot + (vanilla_model.HEAD:getOffsetRot() or vec(0,0,0)), k.speed or 0.3, k.interp or "linear") or lerp(k.rot, rot + (vanilla_model.HEAD:getOffsetRot() or vec(0,0,0)), k.speed or 0.3))
-            end
+            k:tick()
         end
         
     end
@@ -437,20 +433,13 @@ function just_lean:render(delta)
     
     for _, v in pairs(hed) do
         if v.enabled then
-            if type(v.selHead) ~= "VanillaModelPart" then
-                vanilla_model.HEAD:setRot(0,0,0)
-            end
-            local fRot = lerp(v._rot, v.rot, delta)
-            v.selHead:setRot(fRot)
-        else
-            vanilla_model.HEAD:setRot()
+            v:render(delta)
         end
     end
 
     for _, k in pairs(le) do
         if k.enabled then
-            local fRot = lerp(k._rot, k.rot, delta)
-            k.modelpart:setOffsetRot(fRot)
+            k:render(delta)
         end
     end
 
@@ -462,10 +451,6 @@ function just_lean:render(delta)
 end
 
 if just_lean.allowAutoUpdates then
-    function events.entity_init()
-        just_lean:avatar_init()
-    end
-
     function events.tick()
         just_lean:tick()
     end

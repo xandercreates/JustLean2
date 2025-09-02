@@ -396,7 +396,6 @@ function easings:ease(a,b,t,s)
     return self[s](a,b,t)
 end
 
----Helper for the Helper??
 ---@overload fun(a: number, b: number, t: number, s:easings.validInterps): number
 ---@overload fun(a: Vector, b: Vector, t: Vector, s:easings.validInterps): Vector
 ---@overload fun(a: Vector, b: Vector, t: number, s:easings.validInterps): Vector
