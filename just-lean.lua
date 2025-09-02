@@ -268,11 +268,11 @@ function head.new(self, modelpart, speed, tilt, interp, strength, vanillaHead, m
         local final = headRot - vec(this._rot.x, this._rot.y, -this._rot.y / (self.tilt or 4))
         local targetRot = (final+(vanilla_model.HEAD:getOffsetRot() or vec(0,0,0))) * self.strength
         self._rot:set(self.rot)
-            self.rot:set(
-                tweenFn(self.rot,
-                targetRot, self.speed or 0.5,
-                self.interp or "linear")
-            )
+        self.rot:set(
+            tweenFn(self.rot,
+            targetRot, self.speed or 0.5,
+            self.interp or "linear")
+        )
     end
 
     self.render = function(self, delta)
