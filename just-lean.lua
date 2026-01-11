@@ -72,10 +72,10 @@ local function warn(message, level, prefix, toLog, both) --by Auria, Modified by
     end
 end
 
-local Squishy
+local SquAPI
 for _, key in ipairs(listFiles(nil, true)) do
     if key:find("SquAPI$") then
-        Squishy = require(key)
+        SquAPI = require(key)
         if host:isHost() then
             warn(
                 "Squishy's API Detected. This script will not work properly with the Smooth Head/Torso/etc.",
@@ -460,5 +460,6 @@ if just_lean.allowAutoUpdates then
     end
 end
 --#endregion
+
 
 return just_lean
